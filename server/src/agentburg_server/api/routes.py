@@ -11,7 +11,7 @@ from agentburg_server.api.deps import get_current_user
 from agentburg_server.db import get_session
 from agentburg_server.engine.tick import tick_engine
 from agentburg_server.models.agent import Agent, AgentStatus
-from agentburg_server.models.economy import Trade
+from agentburg_server.models.economy import MarketOrder, OrderStatus, Trade
 from agentburg_server.models.user import User
 from agentburg_server.services.auth import create_agent, login_user, register_user
 
@@ -207,3 +207,78 @@ async def world_status(
         "tick": tick_engine.tick,
         "world_time": str(tick_engine.world_time),
     }
+
+
+# --- Market Routes ---
+
+
+class TradeResponse(BaseModel):
+    id: UUID
+    tick: int
+    item: str
+    buyer_id: UUID
+    seller_id: UUID
+    price: int
+    quantity: int
+    total: int
+
+    model_config = {"from_attributes": True}
+
+
+class OrderResponse(BaseModel):
+    id: UUID
+    agent_id: UUID
+    item: str
+    side: str
+    price: int
+    quantity: int
+    filled_quantity: int
+    status: str
+    tick_created: int
+
+    model_config = {"from_attributes": True}
+
+
+class MarketPricesResponse(BaseModel):
+    prices: dict[str, int]
+
+
+@router.get("/market/prices", response_model=MarketPricesResponse)
+async def market_prices(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Get latest VWAP prices for all traded items."""
+    from agentburg_server.services.market import get_market_prices
+
+    prices = await get_market_prices(session)
+    return {"prices": prices}
+
+
+@router.get("/market/orders", response_model=list[OrderResponse])
+async def list_orders(
+    session: AsyncSession = Depends(get_session),
+    item: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=MAX_LIST_LIMIT),
+) -> list:
+    """List open market orders, optionally filtered by item."""
+    stmt = select(MarketOrder).where(MarketOrder.status == OrderStatus.OPEN)
+    if item:
+        stmt = stmt.where(MarketOrder.item == item)
+    stmt = stmt.order_by(MarketOrder.tick_created.desc()).limit(limit)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get("/market/trades", response_model=list[TradeResponse])
+async def list_trades(
+    session: AsyncSession = Depends(get_session),
+    item: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=MAX_LIST_LIMIT),
+) -> list:
+    """List recent trades, optionally filtered by item."""
+    stmt = select(Trade)
+    if item:
+        stmt = stmt.where(Trade.item == item)
+    stmt = stmt.order_by(Trade.tick.desc()).limit(limit)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
