@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
@@ -10,14 +11,24 @@ from agentburg_server.config import settings
 from agentburg_server.db import engine
 from agentburg_server.api.routes import router as api_router
 from agentburg_server.api.ws import router as ws_router
+from agentburg_server.engine.tick import tick_engine
+
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup and shutdown lifecycle."""
-    # Startup
+    logger.info("AgentBurg server starting...")
+    await tick_engine.start()
+    logger.info("Tick engine started (interval=%.1fs)", settings.tick_interval_seconds)
     yield
-    # Shutdown
+    logger.info("AgentBurg server shutting down...")
+    await tick_engine.stop()
     await engine.dispose()
 
 
@@ -43,6 +54,11 @@ app.include_router(ws_router)
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
+async def health_check() -> dict:
     """Health check endpoint."""
-    return {"status": "ok", "version": "0.1.0"}
+    return {
+        "status": "ok",
+        "version": "0.1.0",
+        "tick": tick_engine.tick,
+        "tick_running": tick_engine.running,
+    }
