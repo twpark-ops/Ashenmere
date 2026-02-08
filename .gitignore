@@ -51,3 +51,19 @@ logs/
 # uv
 .python-version
 uv.lock
+
+# Claude Code / AI assistant
+.claude/
+CLAUDE.md
+.claude.md
+
+# Internal docs (not for public repo)
+docs/internal/
+COST_ANALYSIS.md
+TECH_EVALUATION.md
+
+# Secrets & credentials
+*.pem
+*.key
+credentials.*
+secrets.*

@@ -10,7 +10,7 @@ Each tick:
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -103,7 +103,7 @@ class TickEngine:
         tick_in_day = self.tick % self.ticks_per_day
         hour = (tick_in_day * 24) // self.ticks_per_day
         minute = ((tick_in_day * 24 * 60) // self.ticks_per_day) % 60
-        return datetime(2026, 1, 1, hour, minute, tzinfo=timezone.utc) + __import__("datetime").timedelta(days=day)
+        return datetime(2026, 1, 1, hour, minute, tzinfo=timezone.utc) + timedelta(days=day)
 
 
 # Singleton
