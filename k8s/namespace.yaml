@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentburg
+  labels:
+    app.kubernetes.io/name: agentburg
+    app.kubernetes.io/part-of: agentburg

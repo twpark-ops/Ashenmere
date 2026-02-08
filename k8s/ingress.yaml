@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentburg-ingress
+  namespace: agentburg
+  labels:
+    app.kubernetes.io/name: agentburg
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/websocket-services: agentburg-server
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - agentburg.example.com
+      secretName: agentburg-tls
+  rules:
+    - host: agentburg.example.com
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: agentburg-server
+                port:
+                  number: 8000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: agentburg-server
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: agentburg-server
+                port:
+                  number: 8000
