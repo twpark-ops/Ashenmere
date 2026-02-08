@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "latest"
+  NODE_VERSION: "22"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Lint all Python code with ruff
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-lint-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            uv-lint-${{ runner.os }}-
+
+      - name: Install workspace dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Ruff check
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Server tests (requires PostgreSQL 17 service)
+  # ---------------------------------------------------------------------------
+  test-server:
+    name: Test Server
+    runs-on: ubuntu-24.04
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: agentburg
+          POSTGRES_PASSWORD: agentburg
+          POSTGRES_DB: agentburg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentburg"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://agentburg:agentburg@localhost:5432/agentburg_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-server-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            uv-server-${{ runner.os }}-
+
+      - name: Install workspace dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Run server tests
+        run: uv run pytest server/tests/ -v --tb=short
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Client tests
+  # ---------------------------------------------------------------------------
+  test-client:
+    name: Test Client
+    runs-on: ubuntu-24.04
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-client-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            uv-client-${{ runner.os }}-
+
+      - name: Install workspace dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Run client tests
+        run: uv run pytest client/tests/ -v --tb=short
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Dashboard build + optional lint
+  # ---------------------------------------------------------------------------
+  dashboard:
+    name: Dashboard Build
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (if eslint config exists)
+        run: |
+          if [ -f eslint.config.js ] || [ -f eslint.config.mjs ] || [ -f .eslintrc.json ] || [ -f .eslintrc.js ]; then
+            npx eslint src/
+          else
+            echo "No eslint config found, skipping lint step."
+          fi
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Docker image build verification (no push)
+  # ---------------------------------------------------------------------------
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-24.04
+    needs: [test-server, test-client, dashboard]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: false
+          tags: agentburg-server:ci-${{ github.sha }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
+
+      - name: Build client image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: client/Dockerfile
+          push: false
+          tags: agentburg-client:ci-${{ github.sha }}
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,mode=max,scope=client

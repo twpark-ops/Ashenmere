@@ -1,0 +1,39 @@
+# Version control
+.git
+.github
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist/
+build/
+.ruff_cache
+.pytest_cache
+.mypy_cache
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.claude
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation (not needed in image)
+docs/
+*.md
+
+# Frontend (not needed in server/client images)
+node_modules
+dashboard/node_modules
+dashboard/dist
+
+# OS files
+.DS_Store
+Thumbs.db

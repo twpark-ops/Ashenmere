@@ -2,53 +2,96 @@ services:
   # --- Infrastructure ---
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: agentburg
-      POSTGRES_PASSWORD: agentburg
-      POSTGRES_DB: agentburg
+      POSTGRES_USER: ${POSTGRES_USER:-agentburg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentburg}
+      POSTGRES_DB: ${POSTGRES_DB:-agentburg}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - agentburg-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agentburg"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentburg}"]
       interval: 5s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
 
   nats:
     image: nats:2-alpine
+    restart: unless-stopped
     ports:
-      - "4222:4222"
-      - "8222:8222"  # monitoring
+      - "${NATS_PORT:-4222}:4222"
+      - "${NATS_MONITOR_PORT:-8222}:8222"  # monitoring
     command: ["--jetstream", "--store_dir=/data"]
     volumes:
       - natsdata:/data
+    networks:
+      - agentburg-net
     healthcheck:
       test: ["CMD", "nats-server", "--signal", "ldm"]
       interval: 10s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
 
   redis:
     image: redis:8-alpine
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    networks:
+      - agentburg-net
+    read_only: true
+    tmpfs:
+      - /tmp:size=32M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
 
   # --- Application ---
   server:
     build:
       context: .
       dockerfile: server/Dockerfile
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${SERVER_PORT:-8000}:8000"
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agentburg}:${POSTGRES_PASSWORD:-agentburg}@postgres:5432/${POSTGRES_DB:-agentburg}
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +102,62 @@ services:
     volumes:
       - ./server/src:/app/server/src:ro
       - ./shared:/app/shared:ro
+    networks:
+      - agentburg-net
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    env_file: .env
+    environment:
+      NATS_URL: nats://nats:4222
+      SERVER_URL: http://server:8000
+    depends_on:
+      server:
+        condition: service_healthy
+    volumes:
+      - ./client/agent_config:/app/agent_config:ro
+    networks:
+      - agentburg-net
+    read_only: true
+    tmpfs:
+      - /tmp:size=32M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
 
 volumes:
   pgdata:
+    name: agentburg_pgdata
   natsdata:
+    name: agentburg_natsdata
+  redisdata:
+    name: agentburg_redisdata
+
+networks:
+  agentburg-net:
+    name: agentburg-net
+    driver: bridge
