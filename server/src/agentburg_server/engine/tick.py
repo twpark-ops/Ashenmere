@@ -3,19 +3,23 @@
 Each tick:
 1. Process pending market orders (batch auction)
 2. Process pending court cases
-3. Process bank interest (every N ticks = 1 sim-day)
-4. Broadcast tick updates to all connected agents
-5. Log world state snapshot
+3. Process employment contract payments (per-interval)
+4. Process bank interest (every N ticks = 1 sim-day)
+5. Broadcast tick updates to all connected agents
+6. Log world state snapshot
 """
 
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.config import settings
 from agentburg_server.db import async_session_factory
+from agentburg_server.models.agent import Agent
+from agentburg_server.models.social import Contract, ContractStatus, ContractType
 from agentburg_server.services.market import run_batch_auction
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
@@ -76,7 +80,10 @@ class TickEngine:
             # 2. Process court cases
             verdicts = await process_pending_cases(session, self.tick)
 
-            # 3. Process interest once per sim-day
+            # 3. Process employment contract payments
+            payments = await _process_contract_payments(session, self.tick)
+
+            # 4. Process interest once per sim-day
             interest_processed = 0
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
@@ -84,26 +91,91 @@ class TickEngine:
             await session.commit()
 
         elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-        logger.debug(
-            "Tick %d processed in %.3fs: %d trades, %d verdicts, %d interest ops",
-            self.tick,
-            elapsed,
-            len(trades),
-            len(verdicts),
-            interest_processed,
-        )
+
+        # Broadcast tick update to connected agents
+        await self._broadcast_tick_update()
+
+        if self.tick % 100 == 0 or trades or verdicts:
+            logger.info(
+                "Tick %d (%.3fs): %d trades, %d verdicts, %d payments, %d interest",
+                self.tick, elapsed, len(trades), len(verdicts), payments, interest_processed,
+            )
+
+    async def _broadcast_tick_update(self) -> None:
+        """Send tick update to all connected agents."""
+        from agentburg_server.api.ws import get_connected_agents, broadcast_to_agent
+
+        connected = get_connected_agents()
+        if not connected:
+            return
+
+        update_data = {
+            "type": "tick_update",
+            "tick": self.tick,
+            "world_time": str(self.world_time),
+        }
+
+        for agent_id in connected:
+            await broadcast_to_agent(agent_id, update_data)
 
     @property
     def world_time(self) -> datetime:
         """Calculate simulated world time from tick count."""
-        # Each tick = 2 seconds real time, ticks_per_day = 720
-        # So 1 sim-day = 720 * 2 = 1440 seconds = 24 min real time
-        # World starts at midnight
         day = self.tick // self.ticks_per_day
         tick_in_day = self.tick % self.ticks_per_day
         hour = (tick_in_day * 24) // self.ticks_per_day
         minute = ((tick_in_day * 24 * 60) // self.ticks_per_day) % 60
         return datetime(2026, 1, 1, hour, minute, tzinfo=timezone.utc) + timedelta(days=day)
+
+
+async def _process_contract_payments(session: AsyncSession, tick: int) -> int:
+    """Process salary payments for active employment contracts.
+
+    Checks all ACTIVE EMPLOYMENT contracts. If the tick interval has elapsed
+    since last payment (or since contract start), transfers payment_amount
+    from employer to employee.
+    """
+    stmt = select(Contract).where(
+        Contract.contract_type == ContractType.EMPLOYMENT,
+        Contract.status == ContractStatus.ACTIVE,
+        Contract.payment_interval_ticks.is_not(None),
+        Contract.payment_amount > 0,
+    )
+    result = await session.execute(stmt)
+    contracts = list(result.scalars().all())
+
+    payments_made = 0
+    for contract in contracts:
+        interval = contract.payment_interval_ticks
+        if interval is None or interval <= 0:
+            continue
+
+        # Check if payment is due: elapsed ticks since start is a multiple of interval
+        elapsed = tick - contract.tick_start
+        if elapsed <= 0 or elapsed % interval != 0:
+            continue
+
+        employer = await session.get(Agent, contract.party_a_id)
+        employee = await session.get(Agent, contract.party_b_id)
+        if employer is None or employee is None:
+            continue
+
+        salary = contract.payment_amount
+
+        if employer.balance >= salary:
+            employer.balance -= salary
+            employee.balance += salary
+            payments_made += 1
+        else:
+            # Employer cannot afford salary — breach of contract
+            contract.status = ContractStatus.BREACHED
+            employer.reputation = max(0, employer.reputation - 20)
+            logger.warning(
+                "Contract %s breached: employer %s cannot pay salary %d",
+                contract.id, employer.name, salary,
+            )
+
+    return payments_made
 
 
 # Singleton

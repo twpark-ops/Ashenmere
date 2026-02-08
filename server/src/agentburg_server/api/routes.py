@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,14 +17,16 @@ from agentburg_server.services.auth import create_agent, login_user, register_us
 
 router = APIRouter(tags=["api"])
 
+MAX_LIST_LIMIT = 100
+
 
 # --- Request / Response Schemas ---
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    username: str
-    password: str
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserResponse(BaseModel):
@@ -49,9 +51,9 @@ class TokenResponse(BaseModel):
 
 
 class AgentCreate(BaseModel):
-    name: str
-    title: str | None = None
-    bio: str | None = None
+    name: str = Field(min_length=2, max_length=100)
+    title: str | None = Field(default=None, max_length=100)
+    bio: str | None = Field(default=None, max_length=500)
 
 
 class AgentResponse(BaseModel):
@@ -153,11 +155,11 @@ async def create_agent_endpoint(
 @router.get("/agents", response_model=list[AgentResponse])
 async def list_agents(
     session: AsyncSession = Depends(get_session),
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=MAX_LIST_LIMIT),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Agent]:
     """List all agents in the world."""
-    stmt = select(Agent).offset(offset).limit(limit)
+    stmt = select(Agent).offset(offset).limit(min(limit, MAX_LIST_LIMIT))
     result = await session.execute(stmt)
     return list(result.scalars().all())
 

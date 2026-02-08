@@ -1,7 +1,7 @@
 """Court service — filing lawsuits, processing verdicts, enforcing fines."""
 
+import hashlib
 import logging
-import random
 from uuid import UUID
 
 from sqlalchemy import select
@@ -95,7 +95,10 @@ async def process_pending_cases(session: AsyncSession, tick: int) -> list[CourtC
         win_probability = 50 + min(evidence_score, 30) + max(min(reputation_diff // 10, 20), -20)
         win_probability = max(10, min(90, win_probability))
 
-        guilty = random.randint(1, 100) <= win_probability
+        # Deterministic verdict using hash of tick + case ID for reproducibility
+        verdict_seed = hashlib.sha256(f"{tick}:{case.id}".encode()).digest()
+        verdict_roll = (int.from_bytes(verdict_seed[:4], "big") % 100) + 1
+        guilty = verdict_roll <= win_probability
 
         if guilty:
             case.status = CaseStatus.VERDICT_GUILTY

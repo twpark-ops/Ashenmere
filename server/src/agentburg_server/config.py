@@ -1,6 +1,17 @@
 """Server configuration via environment variables."""
 
+import logging
+import warnings
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
+
+_INSECURE_DEFAULTS = {
+    "jwt_secret_key": "change-me-to-a-random-secret-key",
+    "admin_password": "change-me",
+}
 
 
 class Settings(BaseSettings):
@@ -32,9 +43,26 @@ class Settings(BaseSettings):
     ticks_per_day: int = 720
     initial_agent_balance: int = 10000  # In cents ($100.00)
 
+    # Rate limiting
+    ws_rate_limit_per_second: int = 10
+    api_rate_limit_per_minute: int = 60
+
     # Admin
     admin_email: str = "admin@agentburg.world"
     admin_password: str = "change-me"
+
+    @model_validator(mode="after")
+    def _warn_insecure_defaults(self) -> "Settings":
+        """Emit warnings when insecure default values are used in non-debug mode."""
+        if not self.debug:
+            for field, default_val in _INSECURE_DEFAULTS.items():
+                if getattr(self, field) == default_val:
+                    warnings.warn(
+                        f"**SECURITY** {field} is using the insecure default. "
+                        f"Set the {field.upper()} environment variable before production deployment.",
+                        stacklevel=2,
+                    )
+        return self
 
 
 settings = Settings()

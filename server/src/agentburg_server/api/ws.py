@@ -1,6 +1,7 @@
 """WebSocket endpoint for agent-server real-time communication."""
 
 import logging
+from hashlib import sha256
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -30,11 +31,14 @@ _connections: dict[UUID, WebSocket] = {}
 
 
 async def _authenticate(websocket: WebSocket, raw: dict) -> UUID | None:
-    """Validate agent token and return agent_id if valid."""
+    """Validate agent token by hashing it and comparing to stored hash."""
     auth_msg = AuthenticateMessage.model_validate(raw)
 
+    # Hash the raw token to compare against stored hash
+    token_hash = sha256(auth_msg.agent_token.encode()).hexdigest()
+
     async with async_session_factory() as session:
-        stmt = select(Agent).where(Agent.api_token_hash == auth_msg.agent_token)
+        stmt = select(Agent).where(Agent.api_token_hash == token_hash)
         result = await session.execute(stmt)
         agent = result.scalar_one_or_none()
 

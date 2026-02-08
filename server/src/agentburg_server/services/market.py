@@ -7,7 +7,7 @@ continuous matching, which prevents front-running and keeps the game fair.
 import logging
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent
@@ -20,6 +20,10 @@ from agentburg_server.models.economy import (
 from agentburg_server.models.event import EventCategory, WorldEventLog
 
 logger = logging.getLogger(__name__)
+
+# Economic limits to prevent market manipulation
+MAX_ORDER_PRICE = 10_000_00  # $10,000 in cents
+MAX_ORDER_QUANTITY = 10_000
 
 
 async def place_order(
@@ -39,6 +43,14 @@ async def place_order(
 
     if price <= 0 or quantity <= 0:
         raise ValueError("Price and quantity must be positive")
+
+    if price > MAX_ORDER_PRICE:
+        raise ValueError(f"Price exceeds limit ({MAX_ORDER_PRICE} cents)")
+    if quantity > MAX_ORDER_QUANTITY:
+        raise ValueError(f"Quantity exceeds limit ({MAX_ORDER_QUANTITY})")
+
+    if not item or len(item) > 100:
+        raise ValueError("Item name must be 1-100 characters")
 
     # For buy orders, verify the agent can afford it
     if side == OrderSide.BUY:
@@ -97,11 +109,12 @@ async def run_batch_auction(session: AsyncSession, tick: int) -> list[Trade]:
     # Expire old orders first
     await _expire_orders(session, tick)
 
-    # Get all open orders grouped by item
+    # Get all open orders grouped by item (lock rows to prevent concurrent modification)
     stmt = (
         select(MarketOrder)
         .where(MarketOrder.status == OrderStatus.OPEN)
         .order_by(MarketOrder.item, MarketOrder.price, MarketOrder.tick_created)
+        .with_for_update()
     )
     result = await session.execute(stmt)
     orders = list(result.scalars().all())
@@ -284,19 +297,54 @@ async def get_market_prices(session: AsyncSession) -> dict[str, int]:
 
 
 async def _expire_orders(session: AsyncSession, tick: int) -> int:
-    """Expire orders that have passed their expiry tick."""
+    """Expire orders that have passed their expiry tick and refund reserved funds/items."""
+    # Fetch orders that need expiration (must read individually for refunds)
     stmt = (
-        update(MarketOrder)
+        select(MarketOrder)
         .where(
             MarketOrder.status.in_([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
             MarketOrder.tick_expires.is_not(None),
             MarketOrder.tick_expires <= tick,
         )
-        .values(status=OrderStatus.EXPIRED)
     )
     result = await session.execute(stmt)
-    # TODO: refund reserved funds for expired orders
-    return result.rowcount
+    expired_orders = list(result.scalars().all())
+
+    for order in expired_orders:
+        remaining = order.quantity - order.filled_quantity
+        if remaining <= 0:
+            order.status = OrderStatus.EXPIRED
+            continue
+
+        agent = await session.get(Agent, order.agent_id)
+        if agent is None:
+            order.status = OrderStatus.EXPIRED
+            continue
+
+        if order.side == OrderSide.BUY:
+            # Refund reserved funds
+            agent.balance += order.price * remaining
+        elif order.side == OrderSide.SELL:
+            # Return reserved items to inventory
+            inv = dict(agent.inventory)
+            inv[order.item] = inv.get(order.item, 0) + remaining
+            agent.inventory = inv
+
+        order.status = OrderStatus.EXPIRED
+
+        await _log_event(
+            session,
+            tick=tick,
+            category=EventCategory.TRADE,
+            event_type="order_expired",
+            agent_id=order.agent_id,
+            description=f"Order expired: {remaining}x {order.item} refunded",
+            data={"order_id": str(order.id), "side": order.side.value, "refunded_qty": remaining},
+        )
+
+    if expired_orders:
+        logger.info("Tick %d: expired %d orders with refunds", tick, len(expired_orders))
+    return len(expired_orders)
 
 
 async def _log_event(
