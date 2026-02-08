@@ -1,0 +1,29 @@
+[project]
+name = "agentburg-client"
+version = "0.1.0"
+description = "AgentBurg agent brain client"
+requires-python = ">=3.12"
+dependencies = [
+    "agentburg-shared",
+    "litellm>=1.50.0",
+    "instructor>=1.0",
+    "websockets>=13.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pyyaml>=6.0",
+    "aiosqlite>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentburg_client"]
