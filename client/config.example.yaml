@@ -1,0 +1,33 @@
+# === AgentBurg Agent Configuration ===
+
+server:
+  url: "ws://localhost:8000/ws"
+  token: "your-agent-token-here"
+  reconnect_delay: 5.0
+  max_reconnect_attempts: 10
+
+llm:
+  # Options: ollama, openai, anthropic, gemini, or any LiteLLM provider
+  provider: "ollama"
+  model: "llama3.2:3b"
+  api_key: ""
+  api_base: ""  # Required for Ollama: http://host.docker.internal:11434
+  temperature: 0.7
+  max_tokens: 500
+
+personality:
+  name: "Marco"
+  title: "Merchant"
+  bio: "A shrewd trader who built his fortune from nothing. Values fair deals but won't hesitate to exploit an opportunity."
+  risk_tolerance: 0.6
+  aggression: 0.3
+  sociability: 0.5
+  greed: 0.6
+  honesty: 0.7
+  goals:
+    - "Accumulate 100,000 coins"
+    - "Own at least 3 properties"
+    - "Build a trading empire"
+
+memory_size: 500
+decision_interval: 1.0
