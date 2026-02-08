@@ -136,10 +136,13 @@ async def agent_websocket(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         logger.info("Agent %s disconnected", agent_id)
     except ValidationError as e:
-        logger.warning("Invalid message format: %s", e)
+        logger.warning("Invalid message format from agent %s: %s", agent_id, e)
         try:
             await websocket.send_json(
-                ErrorMessage(code="INVALID_MESSAGE", message=str(e)).model_dump(mode="json")
+                ErrorMessage(
+                    code="INVALID_MESSAGE",
+                    message="Invalid message format",
+                ).model_dump(mode="json")
             )
         except Exception:
             pass

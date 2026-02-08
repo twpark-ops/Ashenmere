@@ -174,11 +174,11 @@ async def handle_query(agent_id: UUID, msg: QueryMessage) -> QueryResult:
                 data=data,
             )
 
-    except ValueError as e:
+    except ValueError:
         return QueryResult(
             request_id=msg.request_id,
             query=msg.query,
-            data={"error": str(e)},
+            data={"error": "Invalid query parameters"},
         )
     except Exception:
         logger.exception("Error handling query %s for agent %s", msg.query, agent_id)

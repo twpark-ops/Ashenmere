@@ -102,21 +102,47 @@ class TickEngine:
             )
 
     async def _broadcast_tick_update(self) -> None:
-        """Send tick update to all connected agents."""
+        """Send personalized tick updates to all connected agents.
+
+        Each agent receives their own state (balance, inventory, reputation)
+        plus shared market data and any relevant observations.
+        """
         from agentburg_server.api.ws import get_connected_agents, broadcast_to_agent
+        from agentburg_server.services.market import get_market_prices
 
         connected = get_connected_agents()
         if not connected:
             return
 
-        update_data = {
-            "type": "tick_update",
-            "tick": self.tick,
-            "world_time": str(self.world_time),
-        }
+        async with async_session_factory() as session:
+            # Fetch market data once for all agents
+            prices = await get_market_prices(session)
+            market_data = {"prices": prices}
 
-        for agent_id in connected:
-            await broadcast_to_agent(agent_id, update_data)
+            # Send personalized updates to each connected agent
+            for agent_id in connected:
+                agent = await session.get(Agent, agent_id)
+                if agent is None:
+                    continue
+
+                update_data = {
+                    "type": "tick_update",
+                    "tick": self.tick,
+                    "world_time": str(self.world_time),
+                    "agent": {
+                        "agent_id": str(agent.id),
+                        "name": agent.name,
+                        "balance": agent.balance,
+                        "inventory": agent.inventory or {},
+                        "reputation": agent.reputation,
+                        "credit_score": agent.credit_score,
+                        "location": agent.location,
+                        "status": agent.status.value,
+                    },
+                    "market": market_data,
+                    "observations": [],
+                }
+                await broadcast_to_agent(agent_id, update_data)
 
     @property
     def world_time(self) -> datetime:

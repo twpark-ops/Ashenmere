@@ -280,6 +280,13 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         action=msg.action,
                         message="Empty chat message",
                     )
+                if len(message) > MAX_CHAT_LENGTH:
+                    return ActionResult(
+                        request_id=msg.request_id,
+                        success=False,
+                        action=msg.action,
+                        message=f"Chat message too long (max {MAX_CHAT_LENGTH} chars)",
+                    )
                 target_uuid = UUID(target_id) if target_id else None
                 event = await send_chat(session, agent_id, target_uuid, message, tick)
                 await session.commit()
@@ -349,11 +356,11 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
             action=msg.action,
             message=str(e),
         )
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error handling action %s for agent %s", msg.action, agent_id)
         return ActionResult(
             request_id=msg.request_id,
             success=False,
             action=msg.action,
-            message=f"Internal error: {type(e).__name__}",
+            message="Internal error processing action",
         )

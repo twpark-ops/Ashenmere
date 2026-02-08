@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     ticks_per_day: int = 720
     initial_agent_balance: int = 10000  # In cents ($100.00)
 
+    # CORS (production origins)
+    cors_origins: list[str] = []
+
     # Rate limiting
     ws_rate_limit_per_second: int = 10
     api_rate_limit_per_minute: int = 60
