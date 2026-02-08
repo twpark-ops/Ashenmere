@@ -216,3 +216,21 @@ header h1 span {
 .agent-table th[style*="cursor"]:hover {
   color: var(--text);
 }
+
+/* WebSocket connection indicator */
+.ws-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.ws-indicator--on {
+  background-color: var(--green);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.ws-indicator--off {
+  background-color: var(--text-dim);
+}

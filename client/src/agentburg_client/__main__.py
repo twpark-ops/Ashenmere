@@ -20,11 +20,12 @@ import sys
 import time
 from typing import Any
 
+from agentburg_shared.protocol.messages import MessageType
+
 from agentburg_client.brain import AgentBrain
 from agentburg_client.config import AgentConfig, load_config
 from agentburg_client.connection import ConnectionState, ServerConnection
 from agentburg_client.memory import MemoryCategory
-from agentburg_shared.protocol.messages import MessageType
 
 logger = logging.getLogger("agentburg.agent")
 
@@ -229,6 +230,29 @@ async def _agent_loop(
                 f"Action {action}: {'succeeded' if success else 'failed'} — {message}",
                 tick=tick,
             )
+
+        elif msg_type == MessageType.QUERY_RESULT:
+            query = msg.get("query", "unknown")
+            data = msg.get("data", {})
+            logger.info(
+                "Query result [%s]: %d data keys",
+                query, len(data),
+            )
+            # Store query results as knowledge for future decisions
+            summary_parts = []
+            for key, value in list(data.items())[:5]:
+                if isinstance(value, list):
+                    summary_parts.append(f"{key}: {len(value)} items")
+                elif isinstance(value, (int, float)):
+                    summary_parts.append(f"{key}={value}")
+                else:
+                    summary_parts.append(f"{key}: {str(value)[:50]}")
+            if summary_parts:
+                brain.memory.store(
+                    f"Query {query}: {', '.join(summary_parts)}",
+                    category=MemoryCategory.KNOWLEDGE,
+                    tick=tick,
+                )
 
         elif msg_type == MessageType.OBSERVATION:
             event = msg.get("event", "")

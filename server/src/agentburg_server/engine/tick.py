@@ -92,8 +92,9 @@ class TickEngine:
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
 
-        # Broadcast tick update to connected agents
+        # Broadcast tick update to connected agents and dashboard viewers
         await self._broadcast_tick_update()
+        await self._broadcast_dashboard_update(trades, verdicts, payments, interest_processed)
 
         if self.tick % 100 == 0 or trades or verdicts:
             logger.info(
@@ -143,6 +144,29 @@ class TickEngine:
                     "observations": [],
                 }
                 await broadcast_to_agent(agent_id, update_data)
+
+    async def _broadcast_dashboard_update(
+        self,
+        trades: list,
+        verdicts: list,
+        payments: int,
+        interest_processed: int,
+    ) -> None:
+        """Send world summary to dashboard WebSocket viewers."""
+        from agentburg_server.api.ws import broadcast_to_dashboard
+
+        data = {
+            "type": "tick_update",
+            "tick": self.tick,
+            "world_time": str(self.world_time),
+            "stats": {
+                "trades": len(trades),
+                "verdicts": len(verdicts),
+                "payments": payments,
+                "interest_processed": interest_processed,
+            },
+        }
+        await broadcast_to_dashboard(data)
 
     @property
     def world_time(self) -> datetime:

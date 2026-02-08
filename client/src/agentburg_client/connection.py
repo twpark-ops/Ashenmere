@@ -21,7 +21,6 @@ from websockets.exceptions import ConnectionClosed, InvalidURI
 if TYPE_CHECKING:
     from websockets.asyncio.client import ClientConnection
 
-from agentburg_client.config import AgentConfig
 from agentburg_shared.protocol.messages import (
     ActionMessage,
     ActionType,
@@ -29,6 +28,8 @@ from agentburg_shared.protocol.messages import (
     QueryMessage,
     QueryType,
 )
+
+from agentburg_client.config import AgentConfig
 
 logger = logging.getLogger(__name__)
 

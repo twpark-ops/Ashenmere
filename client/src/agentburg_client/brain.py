@@ -9,15 +9,16 @@ import asyncio
 import json
 import logging
 import random
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import litellm
+from agentburg_shared.protocol.messages import ActionType
 
 from agentburg_client.config import AgentConfig
 from agentburg_client.memory import Memory, MemoryCategory
-from agentburg_shared.protocol.messages import ActionType
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +170,18 @@ class AgentBrain:
         observations = tick_data.get("observations", [])
         tick = tick_data.get("tick", 0)
 
-        # Get relevant memories
-        context = f"tick={tick} balance={agent.get('balance', 0)}"
+        # Build context for memory recall with key agent state
+        context_parts = [
+            f"tick={tick}",
+            f"balance={agent.get('balance', 0)}",
+            f"location={agent.get('location', 'unknown')}",
+            f"reputation={agent.get('reputation', 500)}",
+        ]
+        # Include inventory items for market-related memory recall
+        inventory = agent.get("inventory", {})
+        if inventory:
+            context_parts.append(f"inventory={' '.join(inventory.keys())}")
+        context = " ".join(context_parts)
         memories = self.memory.recall(context, limit=5)
 
         prompt = DECISION_PROMPT.format(
@@ -311,19 +322,18 @@ class AgentBrain:
     def _parse_decision(self, raw: str) -> dict[str, Any]:
         """Parse LLM output into a structured decision.
 
+        Handles multiple JSON formats that LLMs commonly produce:
+        1. Plain JSON: {"action": "buy", ...}
+        2. Markdown code block: ```json\n{...}\n```
+        3. Text with embedded JSON: "I think... {"action": "buy", ...}"
+        4. Multiple code blocks: extracts the first valid one
+
         Validates the action type against the known set. If the output is
         unparseable or contains an invalid action, logs a warning and
         returns IDLE.
         """
         try:
-            # Handle markdown code blocks
-            if "```" in raw:
-                json_str = raw.split("```")[1]
-                if json_str.startswith("json"):
-                    json_str = json_str[4:]
-                data = json.loads(json_str.strip())
-            else:
-                data = json.loads(raw)
+            data = self._extract_json(raw)
 
             if not isinstance(data, dict):
                 logger.warning("LLM returned non-dict JSON: %s", type(data).__name__)
@@ -356,6 +366,49 @@ class AgentBrain:
         except (json.JSONDecodeError, IndexError, KeyError) as e:
             logger.warning("Failed to parse LLM decision (%s): %s", type(e).__name__, raw[:200])
             return self._idle_decision("Failed to parse LLM output")
+
+    @staticmethod
+    def _extract_json(raw: str) -> Any:
+        """Extract JSON from LLM output, handling code blocks and embedded JSON.
+
+        Tries multiple strategies in order:
+        1. Markdown fenced code block (```json ... ``` or ``` ... ```)
+        2. Direct JSON parse of the entire string
+        3. Find the first { ... } substring and parse it
+
+        Raises json.JSONDecodeError if no valid JSON is found.
+        """
+        # Strategy 1: Extract from markdown code blocks
+        code_block_re = re.compile(r"```(?:json)?\s*\n?(.*?)\n?\s*```", re.DOTALL)
+        for match in code_block_re.finditer(raw):
+            content = match.group(1).strip()
+            if content:
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    continue
+
+        # Strategy 2: Direct parse
+        stripped = raw.strip()
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 3: Find the outermost { ... } brace pair
+        start = stripped.find("{")
+        if start != -1:
+            depth = 0
+            for i in range(start, len(stripped)):
+                if stripped[i] == "{":
+                    depth += 1
+                elif stripped[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        candidate = stripped[start : i + 1]
+                        return json.loads(candidate)
+
+        raise json.JSONDecodeError("No valid JSON found in LLM output", raw, 0)
 
     @staticmethod
     def _idle_decision(reason: str) -> dict[str, Any]:

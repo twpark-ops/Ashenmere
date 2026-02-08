@@ -1,4 +1,4 @@
-"""WebSocket endpoint for agent-server real-time communication."""
+"""WebSocket endpoints for agent-server and dashboard communication."""
 
 import logging
 from hashlib import sha256
@@ -27,6 +27,9 @@ router = APIRouter()
 
 # Connected agents: agent_id → WebSocket
 _connections: dict[UUID, WebSocket] = {}
+
+# Connected dashboard viewers: set of WebSocket instances
+_dashboard_viewers: set[WebSocket] = set()
 
 
 async def _authenticate(websocket: WebSocket, raw: dict) -> UUID | None:
@@ -177,3 +180,49 @@ async def broadcast_to_agent(agent_id: UUID, data: dict) -> bool:
 def get_connected_agents() -> list[UUID]:
     """Return list of currently connected agent IDs."""
     return list(_connections.keys())
+
+
+# --- Dashboard WebSocket ---
+
+
+@router.websocket("/ws/dashboard")
+async def dashboard_websocket(websocket: WebSocket) -> None:
+    """Dashboard read-only WebSocket for live world updates.
+
+    No authentication required — sends periodic tick snapshots.
+    Dashboard viewers cannot send commands; messages from clients are ignored.
+    """
+    await websocket.accept()
+    _dashboard_viewers.add(websocket)
+    logger.info("Dashboard viewer connected (total: %d)", len(_dashboard_viewers))
+
+    try:
+        # Keep connection alive by reading (and discarding) any incoming messages
+        async for _ in websocket.iter_text():
+            pass  # Dashboard is read-only; ignore client messages
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.debug("Dashboard viewer disconnected unexpectedly")
+    finally:
+        _dashboard_viewers.discard(websocket)
+        logger.info("Dashboard viewer disconnected (remaining: %d)", len(_dashboard_viewers))
+
+
+async def broadcast_to_dashboard(data: dict) -> None:
+    """Send a message to all connected dashboard viewers.
+
+    Silently removes disconnected viewers.
+    """
+    if not _dashboard_viewers:
+        return
+
+    dead: list[WebSocket] = []
+    for ws in _dashboard_viewers:
+        try:
+            await ws.send_json(data)
+        except Exception:
+            dead.append(ws)
+
+    for ws in dead:
+        _dashboard_viewers.discard(ws)

@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { getAgents, getWorldStatus } from "./api";
-import { useTickHistory } from "./hooks";
+import { useTickHistory, useTickStream } from "./hooks";
 import type { Agent, WorldStatus } from "./types";
 
 // --- Status Cards ---
@@ -308,6 +308,7 @@ export function App() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { history, addPoint } = useTickHistory(60);
 
+  // Full data refresh from REST API
   const refresh = useCallback(async () => {
     try {
       const [s, a] = await Promise.all([getWorldStatus(), getAgents()]);
@@ -321,11 +322,30 @@ export function App() {
     }
   }, [addPoint]);
 
+  // WebSocket tick stream: update tick/world_time instantly, then refresh full data
+  const wsConnected = useTickStream(
+    useCallback(
+      (update) => {
+        setStatus((prev) =>
+          prev
+            ? { ...prev, tick: update.tick, world_time: update.world_time }
+            : prev
+        );
+        setLastUpdate(new Date());
+        // Debounced full refresh to pick up agent balance/status changes
+        refresh();
+      },
+      [refresh]
+    )
+  );
+
+  // Initial load + fallback polling when WebSocket is disconnected
   useEffect(() => {
     refresh();
-    const interval = setInterval(refresh, 3000);
+    // Poll less frequently when WS is connected, more when disconnected
+    const interval = setInterval(refresh, wsConnected ? 10000 : 3000);
     return () => clearInterval(interval);
-  }, [refresh]);
+  }, [refresh, wsConnected]);
 
   return (
     <div className="app">
@@ -335,6 +355,10 @@ export function App() {
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {status && <span className="tick-badge">Tick #{status.tick}</span>}
+          <span
+            className={`ws-indicator ${wsConnected ? "ws-indicator--on" : "ws-indicator--off"}`}
+            title={wsConnected ? "Live updates active" : "Polling mode"}
+          />
         </div>
       </header>
 

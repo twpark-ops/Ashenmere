@@ -623,3 +623,42 @@ async def test_ws_query_court_cases(ws_setup):
         assert resp.get("type") == "query_result"
         assert resp.get("query") == "court_cases"
         assert "cases" in resp.get("data", {})
+
+
+# ---------------------------------------------------------------------------
+# Dashboard WebSocket tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_ws_dashboard_connect(ws_setup):
+    """Dashboard WebSocket should accept connections without authentication."""
+    app, _factory = ws_setup
+
+    async with _ASGIWebSocket(app, path="/ws/dashboard") as ws:
+        # Connection should be accepted — the _ASGIWebSocket.__aenter__
+        # already asserts "websocket.accept" was received.
+        # Dashboard is read-only, so we just verify the connection works.
+        pass  # Successful accept = test passes
+
+
+@pytest.mark.anyio
+async def test_ws_dashboard_broadcast(ws_setup):
+    """Dashboard should receive broadcast messages."""
+    app, _factory = ws_setup
+
+    async with _ASGIWebSocket(app, path="/ws/dashboard") as ws:
+        # Import and call broadcast_to_dashboard directly
+        from agentburg_server.api.ws import broadcast_to_dashboard
+
+        await broadcast_to_dashboard({
+            "type": "tick_update",
+            "tick": 99,
+            "world_time": "2026-01-01 12:00:00",
+            "stats": {"trades": 5, "verdicts": 0, "payments": 2, "interest_processed": 0},
+        })
+
+        resp = await ws.receive_json(timeout=3.0)
+        assert resp["type"] == "tick_update"
+        assert resp["tick"] == 99
+        assert resp["stats"]["trades"] == 5
