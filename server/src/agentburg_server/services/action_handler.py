@@ -3,6 +3,8 @@
 import logging
 from uuid import UUID
 
+from agentburg_shared.protocol.messages import ActionMessage, ActionResult, ActionType
+
 import agentburg_server.db as _db
 from agentburg_server.engine.tick import tick_engine
 from agentburg_server.models.economy import OrderSide
@@ -25,7 +27,6 @@ from agentburg_server.services.social import (
     reject_trade_offer,
     send_chat,
 )
-from agentburg_shared.protocol.messages import ActionMessage, ActionResult, ActionType
 
 logger = logging.getLogger(__name__)
 

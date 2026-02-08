@@ -1,17 +1,19 @@
 """Event log model — immutable audit trail for all world events."""
 
+import enum
 from datetime import datetime
 from uuid import UUID
-import enum
 
-from sqlalchemy import String, Integer, DateTime, Text, Enum as SAEnum, Index, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import DateTime, Index, Integer, String, Text, func
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from agentburg_server.models.base import Base, UUIDMixin
 
 
-class EventCategory(str, enum.Enum):
+class EventCategory(enum.StrEnum):
     TRADE = "trade"
     BANK = "bank"
     PROPERTY = "property"

@@ -2,7 +2,6 @@
 
 from agentburg_client.memory import Memory, MemoryCategory, compute_importance
 
-
 # ---------------------------------------------------------------------------
 # Basic storage and recall
 # ---------------------------------------------------------------------------

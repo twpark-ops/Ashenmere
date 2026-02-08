@@ -3,7 +3,6 @@
 import logging
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent
@@ -259,8 +258,8 @@ async def build_property(
 
     try:
         ptype = PropertyType(property_type_str)
-    except ValueError:
-        raise ValueError(f"Invalid property type: {property_type_str}")
+    except ValueError as exc:
+        raise ValueError(f"Invalid property type: {property_type_str}") from exc
 
     build_costs: dict[PropertyType, int] = {
         PropertyType.LAND: 2000,

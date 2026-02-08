@@ -1,20 +1,20 @@
 """Social models — court cases, contracts, businesses."""
 
-from datetime import datetime
-from uuid import UUID
 import enum
+from uuid import UUID
 
-from sqlalchemy import String, Integer, Boolean, ForeignKey, Text, DateTime, Enum as SAEnum, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from agentburg_server.models.base import Base, UUIDMixin, TimestampMixin
-
+from agentburg_server.models.base import Base, TimestampMixin, UUIDMixin
 
 # --- Court Cases ---
 
 
-class CaseStatus(str, enum.Enum):
+class CaseStatus(enum.StrEnum):
     FILED = "filed"
     IN_PROGRESS = "in_progress"
     VERDICT_GUILTY = "verdict_guilty"
@@ -23,7 +23,7 @@ class CaseStatus(str, enum.Enum):
     DISMISSED = "dismissed"
 
 
-class CaseType(str, enum.Enum):
+class CaseType(enum.StrEnum):
     FRAUD = "fraud"
     BREACH_OF_CONTRACT = "breach_of_contract"
     THEFT = "theft"
@@ -57,7 +57,7 @@ class CourtCase(Base, UUIDMixin, TimestampMixin):
 # --- Contracts ---
 
 
-class ContractType(str, enum.Enum):
+class ContractType(enum.StrEnum):
     EMPLOYMENT = "employment"
     SUPPLY = "supply"
     PARTNERSHIP = "partnership"
@@ -65,7 +65,7 @@ class ContractType(str, enum.Enum):
     CUSTOM = "custom"
 
 
-class ContractStatus(str, enum.Enum):
+class ContractStatus(enum.StrEnum):
     PROPOSED = "proposed"
     ACTIVE = "active"
     COMPLETED = "completed"
@@ -96,7 +96,7 @@ class Contract(Base, UUIDMixin, TimestampMixin):
 # --- Businesses ---
 
 
-class BusinessType(str, enum.Enum):
+class BusinessType(enum.StrEnum):
     SHOP = "shop"
     FACTORY = "factory"
     FARM = "farm"

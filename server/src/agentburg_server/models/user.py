@@ -1,11 +1,10 @@
 """User model — registered users who own agents."""
 
-from uuid import UUID
 
-from sqlalchemy import String, Integer, Boolean
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from agentburg_server.models.base import Base, UUIDMixin, TimestampMixin
+from agentburg_server.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class User(Base, UUIDMixin, TimestampMixin):

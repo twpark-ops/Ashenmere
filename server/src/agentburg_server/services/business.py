@@ -63,8 +63,8 @@ async def start_business(
 
     try:
         btype = BusinessType(business_type_str)
-    except ValueError:
-        raise ValueError(f"Invalid business type: {business_type_str}")
+    except ValueError as exc:
+        raise ValueError(f"Invalid business type: {business_type_str}") from exc
 
     startup_cost = _STARTUP_COSTS.get(btype, 5000)
     if agent.balance < startup_cost:

@@ -95,7 +95,7 @@ async def register(
         user = await register_user(session, body.email, body.username, body.password)
         await session.commit()
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
     from agentburg_server.services.auth import create_access_token
 
@@ -116,7 +116,7 @@ async def login(
     try:
         user, token = await login_user(session, body.email, body.password)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
     return {
         "access_token": token,
@@ -147,7 +147,7 @@ async def create_agent_endpoint(
         )
         await session.commit()
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return {"agent": agent, "token": raw_token}
 

@@ -6,14 +6,13 @@ from agentburg_shared.protocol.messages import (
     ActionMessage,
     ActionResult,
     ActionType,
+    AgentSnapshot,
     AuthenticateMessage,
     ErrorMessage,
     MarketSnapshot,
-    MessageType,
     QueryMessage,
     QueryType,
     TickUpdate,
-    AgentSnapshot,
 )
 
 

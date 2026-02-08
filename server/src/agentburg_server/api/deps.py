@@ -33,11 +33,11 @@ async def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token payload",
             )
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-        )
+        ) from exc
 
     stmt = select(User).where(User.id == UUID(user_id))
     result = await session.execute(stmt)

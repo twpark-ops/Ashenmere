@@ -12,15 +12,14 @@ from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
 from agentburg_server.models.social import ContractStatus
 from agentburg_server.services.business import start_business
 from agentburg_server.services.social import (
+    MAX_INVESTMENT_AMOUNT,
     accept_trade_offer,
     build_property,
     create_trade_offer,
     invest_in_business,
     reject_trade_offer,
     send_chat,
-    MAX_INVESTMENT_AMOUNT,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

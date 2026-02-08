@@ -26,7 +26,7 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return async_session_factory
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """Yield an async DB session for dependency injection."""
     factory = get_session_factory()
     async with factory() as session:

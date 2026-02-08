@@ -13,17 +13,7 @@ from uuid import uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
-
-
-# Force asyncio backend only — SQLAlchemy async does not support trio
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
 from sqlalchemy.dialects.postgresql import JSONB
-
-# ---------------------------------------------------------------------------
-# SQLite type compatibility for PostgreSQL-specific column types
-# ---------------------------------------------------------------------------
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
@@ -32,6 +22,17 @@ from sqlalchemy.pool import StaticPool
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
 from agentburg_server.models.base import Base
 from agentburg_server.models.user import User
+
+
+# Force asyncio backend only — SQLAlchemy async does not support trio
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+# ---------------------------------------------------------------------------
+# SQLite type compatibility for PostgreSQL-specific column types
+# ---------------------------------------------------------------------------
 
 
 @compiles(PGUUID, "sqlite")

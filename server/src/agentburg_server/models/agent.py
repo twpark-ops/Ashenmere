@@ -1,16 +1,18 @@
 """Agent model — AI agents living in the world."""
 
+import enum
 from uuid import UUID
 
-from sqlalchemy import String, Integer, Boolean, ForeignKey, Text, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-import enum
 
-from agentburg_server.models.base import Base, UUIDMixin, TimestampMixin
+from agentburg_server.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class AgentStatus(str, enum.Enum):
+class AgentStatus(enum.StrEnum):
     ACTIVE = "active"
     SLEEPING = "sleeping"  # Owner offline
     BANKRUPT = "bankrupt"
@@ -18,7 +20,7 @@ class AgentStatus(str, enum.Enum):
     SUSPENDED = "suspended"
 
 
-class AgentTier(str, enum.Enum):
+class AgentTier(enum.StrEnum):
     PLAYER = "player"  # User-controlled via Docker client
     NPC_LLM = "npc_llm"  # Server-hosted LLM agent
     NPC_RULE = "npc_rule"  # Server-hosted rule-based agent

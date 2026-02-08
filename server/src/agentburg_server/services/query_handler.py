@@ -3,6 +3,7 @@
 import logging
 from uuid import UUID
 
+from agentburg_shared.protocol.messages import QueryMessage, QueryResult, QueryType
 from sqlalchemy import func, select
 
 import agentburg_server.db as _db
@@ -15,7 +16,6 @@ from agentburg_server.models.economy import (
 )
 from agentburg_server.models.social import Business, CaseStatus, CourtCase
 from agentburg_server.services.market import get_market_prices
-from agentburg_shared.protocol.messages import QueryMessage, QueryResult, QueryType
 
 logger = logging.getLogger(__name__)
 

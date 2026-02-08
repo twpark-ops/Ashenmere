@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from uuid import uuid4
 
 import jwt
@@ -9,7 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.config import settings
-from agentburg_server.models.agent import Agent, AgentTier
+from agentburg_server.models.agent import AgentTier
 from agentburg_server.models.user import User
 from agentburg_server.services.auth import (
     create_access_token,
@@ -20,7 +21,6 @@ from agentburg_server.services.auth import (
     register_user,
     verify_password,
 )
-
 
 # ---------------------------------------------------------------------------
 # Password hashing (synchronous unit tests)
@@ -203,16 +203,14 @@ def test_create_access_token():
 
 def test_create_access_token_expiry():
     """The JWT expiry should match the configured jwt_expire_minutes."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     user_id = uuid4()
-    before = datetime.now(timezone.utc)
     token = create_access_token(user_id)
-    after = datetime.now(timezone.utc)
 
     payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-    exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-    iat = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+    exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
+    iat = datetime.fromtimestamp(payload["iat"], tz=UTC)
 
     # Token lifetime should be approximately jwt_expire_minutes
     delta_seconds = (exp - iat).total_seconds()

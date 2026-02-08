@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 from hashlib import sha256
 from uuid import uuid4
 
@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentburg_server.engine.tick import TickEngine, _process_contract_payments
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
 from agentburg_server.models.social import Contract, ContractStatus, ContractType
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -63,7 +62,7 @@ def test_world_time_calculation():
     t0 = engine.world_time
     assert t0.hour == 0
     assert t0.minute == 0
-    assert t0.tzinfo == timezone.utc
+    assert t0.tzinfo == UTC
 
     # At tick = ticks_per_day → midnight of day 1
     engine.tick = engine.ticks_per_day

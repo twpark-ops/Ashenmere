@@ -1,17 +1,10 @@
 """WebSocket endpoints for agent-server and dashboard communication."""
 
+import contextlib
 import logging
 from hashlib import sha256
 from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import ValidationError
-from sqlalchemy import select
-
-import agentburg_server.db as _db
-from agentburg_server.models.agent import Agent
-from agentburg_server.services.action_handler import handle_action
-from agentburg_server.services.query_handler import handle_query
 from agentburg_shared.protocol.messages import (
     ActionMessage,
     AuthenticateMessage,
@@ -20,6 +13,14 @@ from agentburg_shared.protocol.messages import (
     MessageType,
     QueryMessage,
 )
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
+from sqlalchemy import select
+
+import agentburg_server.db as _db
+from agentburg_server.models.agent import Agent
+from agentburg_server.services.action_handler import handle_action
+from agentburg_server.services.query_handler import handle_query
 
 logger = logging.getLogger(__name__)
 
@@ -139,15 +140,13 @@ async def agent_websocket(websocket: WebSocket) -> None:
         logger.info("Agent %s disconnected", agent_id)
     except ValidationError as e:
         logger.warning("Invalid message format from agent %s: %s", agent_id, e)
-        try:
+        with contextlib.suppress(Exception):
             await websocket.send_json(
                 ErrorMessage(
                     code="INVALID_MESSAGE",
                     message="Invalid message format",
                 ).model_dump(mode="json")
             )
-        except Exception:
-            pass
     except Exception:
         logger.exception("Unexpected error for agent %s", agent_id)
     finally:

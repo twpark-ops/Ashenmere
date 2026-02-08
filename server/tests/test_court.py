@@ -9,9 +9,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
-from agentburg_server.models.social import CaseStatus, CaseType, CourtCase
+from agentburg_server.models.social import CaseStatus, CaseType
 from agentburg_server.services.court import file_lawsuit, process_pending_cases
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -121,7 +120,7 @@ async def test_process_pending_cases(db_session: AsyncSession):
     plaintiff = await _make_agent(db_session, name="P1", balance=10_000, reputation=600)
     defendant = await _make_agent(db_session, name="D1", balance=10_000, reputation=400)
 
-    case = await file_lawsuit(
+    await file_lawsuit(
         db_session,
         plaintiff_id=plaintiff.id,
         defendant_id=defendant.id,
@@ -235,7 +234,7 @@ async def test_guilty_verdict_consequences(db_session: AsyncSession):
     # Many evidence items to push win_probability near 90
     evidence = {f"evidence_{i}": f"item_{i}" for i in range(10)}
 
-    case = await file_lawsuit(
+    await file_lawsuit(
         db_session,
         plaintiff_id=plaintiff.id,
         defendant_id=defendant.id,

@@ -1,16 +1,16 @@
 """FastAPI application entry point."""
 
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from agentburg_server.config import settings
-from agentburg_server.db import engine
 from agentburg_server.api.routes import router as api_router
 from agentburg_server.api.ws import router as ws_router
+from agentburg_server.config import settings
+from agentburg_server.db import engine
 from agentburg_server.engine.tick import tick_engine
 
 logging.basicConfig(
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Startup and shutdown lifecycle."""
     logger.info("AgentBurg server starting...")
     await tick_engine.start()

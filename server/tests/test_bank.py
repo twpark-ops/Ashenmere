@@ -19,7 +19,6 @@ from agentburg_server.services.bank import (
     withdraw,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -143,7 +142,6 @@ async def test_withdraw_insufficient_account_balance(db_session: AsyncSession):
 async def test_request_loan(db_session: AsyncSession):
     """Requesting a loan within credit limits should disburse funds to the wallet."""
     agent = await _make_agent(db_session, balance=1_000, credit_score=700)
-    max_allowed = 700 * 100  # 70_000
 
     loan_account = await request_loan(db_session, agent.id, amount=10_000, tick=1)
     await db_session.flush()

@@ -10,6 +10,7 @@ Each tick:
 """
 
 import asyncio
+import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -50,10 +51,8 @@ class TickEngine:
         self.running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         logger.info("Tick engine stopped at tick %d", self.tick)
 
     async def _run(self) -> None:

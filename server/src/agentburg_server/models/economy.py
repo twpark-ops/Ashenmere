@@ -1,23 +1,32 @@
 """Economic models — accounts, orders, trades, properties."""
 
+import enum
 from datetime import datetime
 from uuid import UUID
-import enum
 
 from sqlalchemy import (
-    String, Integer, Boolean, ForeignKey, Text, DateTime,
-    CheckConstraint, Index, Enum as SAEnum, func,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
 )
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy import (
+    Enum as SAEnum,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from agentburg_server.models.base import Base, UUIDMixin, TimestampMixin
-
+from agentburg_server.models.base import Base, TimestampMixin, UUIDMixin
 
 # --- Bank Account ---
 
 
-class AccountType(str, enum.Enum):
+class AccountType(enum.StrEnum):
     CHECKING = "checking"
     SAVINGS = "savings"
     LOAN = "loan"
@@ -45,12 +54,12 @@ class Account(Base, UUIDMixin, TimestampMixin):
 # --- Market Orders ---
 
 
-class OrderSide(str, enum.Enum):
+class OrderSide(enum.StrEnum):
     BUY = "buy"
     SELL = "sell"
 
 
-class OrderStatus(str, enum.Enum):
+class OrderStatus(enum.StrEnum):
     OPEN = "open"
     FILLED = "filled"
     PARTIALLY_FILLED = "partially_filled"
@@ -118,7 +127,7 @@ class Trade(Base, UUIDMixin):
 # --- Property Registry ---
 
 
-class PropertyType(str, enum.Enum):
+class PropertyType(enum.StrEnum):
     LAND = "land"
     BUILDING = "building"
     SHOP = "shop"

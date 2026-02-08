@@ -11,15 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
 from agentburg_server.models.social import BusinessType, ContractStatus
 from agentburg_server.services.business import (
+    MAX_BUSINESSES_PER_AGENT,
+    MAX_SALARY,
     close_business,
     fire_agent,
     hire_agent,
     set_price,
     start_business,
-    MAX_BUSINESSES_PER_AGENT,
-    MAX_SALARY,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

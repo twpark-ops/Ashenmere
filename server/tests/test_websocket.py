@@ -7,6 +7,7 @@ directly without requiring external libraries or sync/async conflicts.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from hashlib import sha256
 from uuid import uuid4
 
@@ -63,10 +64,8 @@ class _ASGIWebSocket:
                 await asyncio.wait_for(self._task, timeout=2.0)
             except (TimeoutError, Exception):
                 self._task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._task
-                except asyncio.CancelledError:
-                    pass
 
     async def send_json(self, data: dict) -> None:
         import json
@@ -635,7 +634,7 @@ async def test_ws_dashboard_connect(ws_setup):
     """Dashboard WebSocket should accept connections without authentication."""
     app, _factory = ws_setup
 
-    async with _ASGIWebSocket(app, path="/ws/dashboard") as ws:
+    async with _ASGIWebSocket(app, path="/ws/dashboard"):
         # Connection should be accepted — the _ASGIWebSocket.__aenter__
         # already asserts "websocket.accept" was received.
         # Dashboard is read-only, so we just verify the connection works.

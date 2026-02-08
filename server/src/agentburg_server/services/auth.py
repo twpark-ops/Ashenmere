@@ -1,7 +1,7 @@
 """Authentication service — user registration, login, agent token management."""
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import UUID
 
@@ -35,8 +35,8 @@ def create_access_token(user_id: UUID) -> str:
     """Create a JWT access token for a user."""
     payload = {
         "sub": str(user_id),
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes),
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 

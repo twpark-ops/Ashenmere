@@ -40,6 +40,21 @@ testpaths = ["tests"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/agentburg_server"]
 
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "S", "UP", "SIM"]
+ignore = [
+    "B008",   # Depends() in defaults — standard FastAPI pattern
+    "S105",   # Hardcoded password — false positives on token_type
+    "S104",   # Binding to 0.0.0.0 — required for Docker containers
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S106", "S108", "S110"]
+
 [dependency-groups]
 dev = [
     "httpx-ws>=0.8.2",
