@@ -21,6 +21,7 @@ import agentburg_server.db as _db
 from agentburg_server.config import settings
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.social import Contract, ContractStatus, ContractType
+from agentburg_server.plugins.base import HookType
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
 from agentburg_server.services.market import run_batch_auction
@@ -70,19 +71,50 @@ class TickEngine:
 
     async def _process_tick(self) -> None:
         """Process a single world tick."""
+        from agentburg_server.plugins.manager import plugin_manager
+
         start = datetime.now(UTC)
+
+        # Plugin hook: before_tick
+        await plugin_manager.dispatch(HookType.BEFORE_TICK, tick=self.tick)
 
         async with _db.get_session_factory()() as session:
             # 1. Run batch auction for market orders
             trades = await run_batch_auction(session, self.tick)
 
-            # 2. Process court cases
+            # 2. Dispatch on_trade hooks for each executed trade
+            for trade in trades:
+                await plugin_manager.dispatch(
+                    HookType.ON_TRADE,
+                    session=session,
+                    tick=self.tick,
+                    buyer_id=trade.buyer_id,
+                    seller_id=trade.seller_id,
+                    item=trade.item,
+                    price=trade.price,
+                    quantity=trade.quantity,
+                )
+
+            # 3. Process court cases
             verdicts = await process_pending_cases(session, self.tick)
 
-            # 3. Process employment contract payments
+            # 4. Dispatch on_verdict hooks for each resolved case
+            for case in verdicts:
+                await plugin_manager.dispatch(
+                    HookType.ON_VERDICT,
+                    session=session,
+                    tick=self.tick,
+                    case_id=case.id,
+                    plaintiff_id=case.plaintiff_id,
+                    defendant_id=case.defendant_id,
+                    guilty=case.status.value == "verdict_guilty",
+                    fine=case.fine_amount or 0,
+                )
+
+            # 5. Process employment contract payments
             payments = await _process_contract_payments(session, self.tick)
 
-            # 4. Process interest once per sim-day
+            # 6. Process interest once per sim-day
             interest_processed = 0
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
@@ -90,6 +122,17 @@ class TickEngine:
             await session.commit()
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
+
+        # Plugin hook: after_tick
+        await plugin_manager.dispatch(
+            HookType.AFTER_TICK,
+            tick=self.tick,
+            trades=len(trades),
+            verdicts=len(verdicts),
+            payments=payments,
+            interest=interest_processed,
+            elapsed=elapsed,
+        )
 
         # Broadcast tick update to connected agents and dashboard viewers
         await self._broadcast_tick_update()

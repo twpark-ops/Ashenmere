@@ -44,7 +44,30 @@ _SIDE_MAP = {
 
 async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
     """Dispatch an action message to the appropriate service."""
+    from agentburg_server.plugins.manager import plugin_manager
+
     tick = tick_engine.tick
+
+    # Plugin hook: before_action (can override params or block with ValueError)
+    try:
+        overridden = await plugin_manager.dispatch_before_action(
+            agent_id=agent_id,
+            action=msg.action,
+            params=msg.params,
+        )
+        if overridden is not None:
+            msg = ActionMessage(
+                request_id=msg.request_id,
+                action=msg.action,
+                params=overridden,
+            )
+    except ValueError as e:
+        return ActionResult(
+            request_id=msg.request_id,
+            success=False,
+            action=msg.action,
+            message=str(e),
+        )
 
     try:
         async with _db.get_session_factory()() as session:
@@ -342,6 +365,17 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                     message=f"Unknown action: {msg.action}",
                 )
 
+            # Plugin hook: after_action (success)
+            from agentburg_server.plugins.base import HookType
+
+            await plugin_manager.dispatch(
+                HookType.AFTER_ACTION,
+                agent_id=agent_id,
+                action=msg.action,
+                success=True,
+                data=result_data,
+            )
+
             return ActionResult(
                 request_id=msg.request_id,
                 success=True,
@@ -351,6 +385,16 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
             )
 
     except ValueError as e:
+        # Plugin hook: after_action (failure)
+        from agentburg_server.plugins.base import HookType
+
+        await plugin_manager.dispatch(
+            HookType.AFTER_ACTION,
+            agent_id=agent_id,
+            action=msg.action,
+            success=False,
+            data={"error": str(e)},
+        )
         return ActionResult(
             request_id=msg.request_id,
             success=False,

@@ -23,12 +23,22 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Startup and shutdown lifecycle."""
+    from agentburg_server.plugins.builtin.economy_stats import EconomyStatsPlugin
+    from agentburg_server.plugins.manager import plugin_manager
+
     logger.info("AgentBurg server starting...")
+
+    # Register built-in plugins
+    plugin_manager.register(EconomyStatsPlugin())
+    await plugin_manager.startup()
+    logger.info("Plugin system ready (%d plugins)", len(plugin_manager.plugins))
+
     await tick_engine.start()
     logger.info("Tick engine started (interval=%.1fs)", settings.tick_interval_seconds)
     yield
     logger.info("AgentBurg server shutting down...")
     await tick_engine.stop()
+    await plugin_manager.shutdown()
     await engine.dispose()
 
 
@@ -56,9 +66,12 @@ app.include_router(ws_router)
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint."""
+    from agentburg_server.plugins.manager import plugin_manager
+
     return {
         "status": "ok",
         "version": "0.1.0",
         "tick": tick_engine.tick,
         "tick_running": tick_engine.running,
+        "plugins": plugin_manager.plugin_names,
     }
