@@ -100,10 +100,14 @@ async def agent_websocket(websocket: WebSocket) -> None:
                     action_msg = ActionMessage.model_validate(raw)
                     result = await handle_action(agent_id, action_msg)
                     await websocket.send_json(result.model_dump(mode="json"))
-                except Exception as e:
-                    logger.exception("Error handling action for agent %s", agent_id)
+                except ValueError as e:
                     await websocket.send_json(
                         ErrorMessage(code="ACTION_ERROR", message=str(e)).model_dump(mode="json")
+                    )
+                except Exception:
+                    logger.exception("Error handling action for agent %s", agent_id)
+                    await websocket.send_json(
+                        ErrorMessage(code="ACTION_ERROR", message="Internal action error").model_dump(mode="json")
                     )
 
             elif msg_type == MessageType.QUERY:
@@ -111,10 +115,14 @@ async def agent_websocket(websocket: WebSocket) -> None:
                     query_msg = QueryMessage.model_validate(raw)
                     result = await handle_query(agent_id, query_msg)
                     await websocket.send_json(result.model_dump(mode="json"))
-                except Exception as e:
-                    logger.exception("Error handling query for agent %s", agent_id)
+                except ValueError as e:
                     await websocket.send_json(
                         ErrorMessage(code="QUERY_ERROR", message=str(e)).model_dump(mode="json")
+                    )
+                except Exception:
+                    logger.exception("Error handling query for agent %s", agent_id)
+                    await websocket.send_json(
+                        ErrorMessage(code="QUERY_ERROR", message="Internal query error").model_dump(mode="json")
                     )
 
             else:
