@@ -71,3 +71,4 @@ dashboard/dist/
 *.key
 credentials.*
 secrets.*
+!secrets.*.example
