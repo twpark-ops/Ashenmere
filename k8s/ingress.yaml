@@ -43,3 +43,10 @@ spec:
                 name: agentburg-server
                 port:
                   number: 8000
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

@@ -87,11 +87,21 @@ async def agent_websocket(websocket: WebSocket) -> None:
             await websocket.close(code=4001)
             return
 
+        from agentburg_server.metrics import (
+            agents_connected,
+            ws_auth_failures,
+            ws_connections_total,
+            ws_messages_received,
+        )
+
         agent_id = await _authenticate(websocket, raw)
         if agent_id is None:
+            ws_auth_failures.inc()
             await websocket.close(code=4001)
             return
 
+        ws_connections_total.inc()
+        agents_connected.inc()
         _connections[agent_id] = websocket
         logger.info("Agent %s connected", agent_id)
 
@@ -107,6 +117,7 @@ async def agent_websocket(websocket: WebSocket) -> None:
             msg_type = raw.get("type")
 
             if msg_type == MessageType.ACTION:
+                ws_messages_received.labels(message_type="action").inc()
                 try:
                     action_msg = ActionMessage.model_validate(raw)
                     result = await handle_action(agent_id, action_msg)
@@ -122,6 +133,7 @@ async def agent_websocket(websocket: WebSocket) -> None:
                     )
 
             elif msg_type == MessageType.QUERY:
+                ws_messages_received.labels(message_type="query").inc()
                 try:
                     query_msg = QueryMessage.model_validate(raw)
                     result = await handle_query(agent_id, query_msg)
@@ -159,6 +171,9 @@ async def agent_websocket(websocket: WebSocket) -> None:
         logger.exception("Unexpected error for agent %s", agent_id)
     finally:
         if agent_id:
+            from agentburg_server.metrics import agents_connected as _ac
+
+            _ac.dec()
             _connections.pop(agent_id, None)
 
             # Plugin hook: on_agent_disconnect

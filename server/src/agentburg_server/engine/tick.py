@@ -71,6 +71,13 @@ class TickEngine:
 
     async def _process_tick(self) -> None:
         """Process a single world tick."""
+        from agentburg_server.metrics import (
+            court_verdicts,
+            tick_current,
+            tick_duration_seconds,
+            trade_volume,
+            trades_total,
+        )
         from agentburg_server.plugins.manager import plugin_manager
 
         start = datetime.now(UTC)
@@ -84,6 +91,8 @@ class TickEngine:
 
             # 2. Dispatch on_trade hooks for each executed trade
             for trade in trades:
+                trades_total.inc()
+                trade_volume.inc(trade.total)
                 await plugin_manager.dispatch(
                     HookType.ON_TRADE,
                     session=session,
@@ -100,6 +109,8 @@ class TickEngine:
 
             # 4. Dispatch on_verdict hooks for each resolved case
             for case in verdicts:
+                result = "guilty" if case.status.value == "verdict_guilty" else "not_guilty"
+                court_verdicts.labels(result=result).inc()
                 await plugin_manager.dispatch(
                     HookType.ON_VERDICT,
                     session=session,
@@ -122,6 +133,10 @@ class TickEngine:
             await session.commit()
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
+
+        # Prometheus metrics
+        tick_current.set(self.tick)
+        tick_duration_seconds.observe(elapsed)
 
         # Plugin hook: after_tick
         await plugin_manager.dispatch(

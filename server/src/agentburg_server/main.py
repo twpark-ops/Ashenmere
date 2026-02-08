@@ -1,17 +1,20 @@
 """FastAPI application entry point."""
 
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import generate_latest
 
 from agentburg_server.api.routes import router as api_router
 from agentburg_server.api.ws import router as ws_router
 from agentburg_server.config import settings
 from agentburg_server.db import engine
 from agentburg_server.engine.tick import tick_engine
+from agentburg_server.metrics import http_duration_seconds, http_requests
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -63,6 +66,23 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(ws_router)
 
 
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next) -> Response:  # type: ignore[type-arg]
+    """Collect HTTP request metrics for Prometheus."""
+    if request.url.path in ("/metrics", "/health"):
+        return await call_next(request)
+
+    method = request.method
+    path = request.url.path
+    start = time.perf_counter()
+    response: Response = await call_next(request)
+    duration = time.perf_counter() - start
+
+    http_requests.labels(method=method, endpoint=path, status=response.status_code).inc()
+    http_duration_seconds.labels(method=method, endpoint=path).observe(duration)
+    return response
+
+
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint."""
@@ -75,3 +95,12 @@ async def health_check() -> dict:
         "tick_running": tick_engine.running,
         "plugins": plugin_manager.plugin_names,
     }
+
+
+@app.get("/metrics")
+async def prometheus_metrics() -> Response:
+    """Prometheus metrics endpoint."""
+    return Response(
+        content=generate_latest(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )

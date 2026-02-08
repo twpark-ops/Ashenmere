@@ -30,6 +30,14 @@ spec:
       ports:
         - port: 8000
           protocol: TCP
+    # Prometheus scraping
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - port: 8000
+          protocol: TCP
   egress:
     # PostgreSQL
     - to:
