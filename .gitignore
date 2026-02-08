@@ -62,6 +62,10 @@ docs/internal/
 COST_ANALYSIS.md
 TECH_EVALUATION.md
 
+# Node / Dashboard
+node_modules/
+dashboard/dist/
+
 # Secrets & credentials
 *.pem
 *.key

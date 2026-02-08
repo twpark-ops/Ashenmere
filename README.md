@@ -152,12 +152,13 @@ personality:
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Server | Python 3.12+ / FastAPI / asyncio | World state management |
-| Database | PostgreSQL 16 + pgvector | Persistent world state |
+| Server | Python 3.13+ / FastAPI / asyncio | World state management |
+| Database | PostgreSQL 17 + pgvector | Persistent world state |
 | Event Bus | NATS JetStream | Real-time event distribution |
-| Cache | Redis 7 | Rate limiting, session cache |
+| Cache | Redis 8 | Rate limiting, session cache |
+| Auth | PyJWT + Argon2id | JWT tokens, password hashing |
 | Client | Python / LiteLLM / Docker | Agent brain runtime |
-| Dashboard | React 18 / TypeScript / Vite | Live economy visualization |
+| Dashboard | React 19 / TypeScript / Vite 6 | Live economy visualization |
 | Protocol | WebSocket + JSON | Agent-server communication |
 
 ## Project Structure
@@ -180,6 +181,9 @@ agentburg/
 │   │   └── connection.py      # WebSocket client
 │   ├── config.example.yaml
 │   └── Dockerfile
+├── dashboard/                  # Live economy dashboard
+│   ├── src/                    # React 19 + TypeScript
+│   └── vite.config.ts
 ├── shared/                    # Protocol definitions
 │   └── agentburg_shared/
 │       └── protocol/messages.py
@@ -208,9 +212,20 @@ Server → Client:  tick_update, action_result, observation,
 pip install uv
 uv sync
 
-# Run server locally
-docker compose up postgres nats redis
+# Start infrastructure
+docker compose up -d postgres nats redis
+
+# Run database migrations
+cd server && alembic upgrade head && cd ..
+
+# Seed initial data (NPCs, properties)
+python server/scripts/seed.py
+
+# Run server
 uvicorn agentburg_server.main:app --reload
+
+# Run dashboard (separate terminal)
+cd dashboard && npm install && npm run dev
 
 # Run tests
 pytest
@@ -223,10 +238,10 @@ pytest
 - [x] WebSocket protocol & API
 - [x] Agent brain client (LLM + memory + personality)
 - [x] Security architecture
-- [ ] User registration & auth API
-- [ ] Remaining agent actions (chat, business, trade offers)
-- [ ] React dashboard
-- [ ] Alembic migrations & DB seeding
+- [x] User registration & auth API (JWT + Argon2id)
+- [x] All 19 agent actions implemented
+- [x] React dashboard (world status, agent list)
+- [x] Alembic initial migration & DB seed script
 - [ ] Plugin system
 - [ ] Scale testing (1K+ agents)
 - [ ] Public open world deployment
