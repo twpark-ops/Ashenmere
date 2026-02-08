@@ -255,3 +255,371 @@ async def test_ws_unknown_message_type(ws_setup):
 
         assert resp.get("type") == "error"
         assert resp.get("code") == "UNKNOWN_MESSAGE"
+
+
+# ---------------------------------------------------------------------------
+# Extended action tests (cover action_handler branches)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_ws_action_buy(ws_setup):
+    """A buy action should create a market order and reserve funds."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory, balance=50_000)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        auth_resp = await ws.receive_json()
+        assert auth_resp["success"] is True
+
+        await ws.send_json({
+            "type": "action",
+            "action": "buy",
+            "params": {"item": "wheat", "price": 100, "quantity": 5},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is True
+        assert "order_id" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_action_sell(ws_setup):
+    """A sell action should create a sell order and reserve inventory."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        auth_resp = await ws.receive_json()
+        assert auth_resp["success"] is True
+
+        await ws.send_json({
+            "type": "action",
+            "action": "sell",
+            "params": {"item": "wheat", "price": 150, "quantity": 10},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is True
+        assert "order_id" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_action_buy_missing_params(ws_setup):
+    """A buy action without item or price should fail gracefully."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "action",
+            "action": "buy",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is False
+        assert "Missing" in resp.get("message", "")
+
+
+@pytest.mark.anyio
+async def test_ws_action_chat(ws_setup):
+    """A chat action should succeed and return an event_id."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "action",
+            "action": "chat",
+            "params": {"message": "Hello world!"},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is True
+        assert "event_id" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_action_chat_empty(ws_setup):
+    """An empty chat message should be rejected."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "action",
+            "action": "chat",
+            "params": {"message": ""},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is False
+
+
+@pytest.mark.anyio
+async def test_ws_action_start_business(ws_setup):
+    """Starting a business via WebSocket should succeed."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory, balance=100_000)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "action",
+            "action": "start_business",
+            "params": {
+                "name": "Test Shop",
+                "business_type": "shop",
+                "location": "downtown",
+            },
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is True
+        assert "business_id" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_action_build(ws_setup):
+    """Building a property via WebSocket should succeed."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory, balance=500_000)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "action",
+            "action": "build",
+            "params": {
+                "name": "Test Building",
+                "property_type": "building",
+                "location": "uptown",
+            },
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "action_result"
+        assert resp.get("success") is True
+        assert "property_id" in resp.get("data", {})
+
+
+# ---------------------------------------------------------------------------
+# Extended query tests (cover query_handler branches)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_ws_query_inventory(ws_setup):
+    """Querying inventory should return the agent's items."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        auth_resp = await ws.receive_json()
+        assert auth_resp["success"] is True
+
+        await ws.send_json({
+            "type": "query",
+            "query": "my_inventory",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "my_inventory"
+        data = resp.get("data", {})
+        assert "inventory" in data
+        assert data["inventory"].get("wheat") == 50
+
+
+@pytest.mark.anyio
+async def test_ws_query_world_status(ws_setup):
+    """Querying world status should return aggregate stats."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "world_status",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "world_status"
+        data = resp.get("data", {})
+        assert "total_agents" in data
+        assert "active_agents" in data
+        assert data["total_agents"] >= 1
+
+
+@pytest.mark.anyio
+async def test_ws_query_market_prices(ws_setup):
+    """Querying market prices should return price data."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "market_prices",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "market_prices"
+        assert "prices" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_query_bank_rates(ws_setup):
+    """Querying bank rates should return interest rate data."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "bank_rates",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "bank_rates"
+        data = resp.get("data", {})
+        assert "savings_rate" in data
+        assert "loan_base_rate" in data
+
+
+@pytest.mark.anyio
+async def test_ws_query_business_list(ws_setup):
+    """Querying business list should return businesses."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "business_list",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "business_list"
+        assert "businesses" in resp.get("data", {})
+
+
+@pytest.mark.anyio
+async def test_ws_query_market_orders(ws_setup):
+    """Querying market orders should return open orders."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory, balance=50_000)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        # Place an order first to have something to query
+        await ws.send_json({
+            "type": "action",
+            "action": "buy",
+            "params": {"item": "wheat", "price": 100, "quantity": 5},
+        })
+        await ws.receive_json()
+
+        # Query open orders
+        await ws.send_json({
+            "type": "query",
+            "query": "market_orders",
+            "params": {"item": "wheat"},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "market_orders"
+        orders = resp.get("data", {}).get("orders", [])
+        assert len(orders) >= 1
+        assert orders[0]["item"] == "wheat"
+
+
+@pytest.mark.anyio
+async def test_ws_query_balance_data(ws_setup):
+    """Querying balance should return correct balance amount."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory, balance=25_000)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "my_balance",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        data = resp.get("data", {})
+        assert data["balance"] == 25_000
+
+
+@pytest.mark.anyio
+async def test_ws_query_court_cases(ws_setup):
+    """Querying court cases should return cases for the agent."""
+    app, factory = ws_setup
+    agent, raw_token = await _make_agent_with_token(factory)
+
+    async with _ASGIWebSocket(app) as ws:
+        await ws.send_json({"type": "authenticate", "agent_token": raw_token})
+        await ws.receive_json()
+
+        await ws.send_json({
+            "type": "query",
+            "query": "court_cases",
+            "params": {},
+        })
+        resp = await ws.receive_json()
+
+        assert resp.get("type") == "query_result"
+        assert resp.get("query") == "court_cases"
+        assert "cases" in resp.get("data", {})
