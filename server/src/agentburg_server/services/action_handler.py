@@ -4,6 +4,11 @@ import logging
 from uuid import UUID
 
 from agentburg_shared.protocol.messages import ActionMessage, ActionResult, ActionType
+
+# Economic bounds for action parameters
+MAX_SALARY = 100_000  # $1,000 per day max
+MAX_INVESTMENT = 1_000_000  # $10,000 max single investment
+MAX_CHAT_LENGTH = 500
 from agentburg_server.db import async_session_factory
 from agentburg_server.engine.tick import tick_engine
 from agentburg_server.models.economy import OrderSide
@@ -196,6 +201,13 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         action=msg.action,
                         message="Missing employee_id or business_id",
                     )
+                if salary <= 0 or salary > MAX_SALARY:
+                    return ActionResult(
+                        request_id=msg.request_id,
+                        success=False,
+                        action=msg.action,
+                        message=f"Salary must be 1-{MAX_SALARY} cents",
+                    )
                 contract = await hire_agent(
                     session, agent_id, UUID(employee_id), UUID(business_id), salary, tick
                 )
@@ -282,6 +294,13 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         success=False,
                         action=msg.action,
                         message="Missing business_id or invalid amount",
+                    )
+                if amount > MAX_INVESTMENT:
+                    return ActionResult(
+                        request_id=msg.request_id,
+                        success=False,
+                        action=msg.action,
+                        message=f"Investment exceeds limit ({MAX_INVESTMENT} cents)",
                     )
                 biz = await invest_in_business(
                     session, agent_id, UUID(business_id), amount, tick

@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent
@@ -16,6 +16,12 @@ from agentburg_server.models.social import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Limits
+MAX_BUSINESSES_PER_AGENT = 5
+MAX_EMPLOYEES_PER_BUSINESS = 20
+MAX_SALARY = 100_000  # $1,000 per day in cents
+MAX_PRODUCTS_PER_BUSINESS = 50
 
 # Startup cost per business type (in cents)
 _STARTUP_COSTS: dict[BusinessType, int] = {
@@ -38,9 +44,22 @@ async def start_business(
     tick: int,
 ) -> Business:
     """Create a new business owned by the agent."""
+    if not name or len(name) > 100:
+        raise ValueError("Business name must be 1-100 characters")
+
     agent = await session.get(Agent, agent_id)
     if agent is None:
         raise ValueError("Agent not found")
+
+    # Check business ownership limit
+    existing_count = await session.scalar(
+        select(func.count()).select_from(Business).where(
+            Business.owner_id == agent_id,
+            Business.is_active == True,  # noqa: E712
+        )
+    )
+    if (existing_count or 0) >= MAX_BUSINESSES_PER_AGENT:
+        raise ValueError(f"Cannot own more than {MAX_BUSINESSES_PER_AGENT} active businesses")
 
     try:
         btype = BusinessType(business_type_str)
@@ -113,11 +132,15 @@ async def set_price(
         raise ValueError("Business is closed")
     if price < 0:
         raise ValueError("Price cannot be negative")
+    if not item or len(item) > 100:
+        raise ValueError("Product name must be 1-100 characters")
 
     products = dict(business.products)
     if price == 0:
         products.pop(item, None)  # Remove item from catalog
     else:
+        if item not in products and len(products) >= MAX_PRODUCTS_PER_BUSINESS:
+            raise ValueError(f"Business has max {MAX_PRODUCTS_PER_BUSINESS} products")
         products[item] = price
     business.products = products
     await session.flush()
@@ -135,6 +158,8 @@ async def hire_agent(
     """Hire an agent as an employee via an employment contract."""
     if employer_id == employee_id:
         raise ValueError("Cannot hire yourself")
+    if salary <= 0 or salary > MAX_SALARY:
+        raise ValueError(f"Salary must be between 1 and {MAX_SALARY} cents")
 
     business = await session.get(Business, business_id)
     if business is None:
@@ -143,6 +168,8 @@ async def hire_agent(
         raise ValueError("You don't own this business")
     if not business.is_active:
         raise ValueError("Business is closed")
+    if business.employees >= MAX_EMPLOYEES_PER_BUSINESS:
+        raise ValueError(f"Business has max {MAX_EMPLOYEES_PER_BUSINESS} employees")
 
     employee = await session.get(Agent, employee_id)
     if employee is None:

@@ -18,6 +18,11 @@ from agentburg_server.models.social import (
 
 logger = logging.getLogger(__name__)
 
+# Limits
+MAX_TRADE_ITEMS = 10
+MAX_TRADE_QUANTITY = 10_000
+MAX_INVESTMENT_AMOUNT = 1_000_000  # $10,000 in cents
+
 
 # --- Trade Offers (Direct P2P) ---
 
@@ -38,6 +43,15 @@ async def create_trade_offer(
     """
     if offerer_id == target_id:
         raise ValueError("Cannot trade with yourself")
+
+    # Validate trade item counts and quantities
+    if len(offer_items) + len(request_items) > MAX_TRADE_ITEMS:
+        raise ValueError(f"Trade cannot exceed {MAX_TRADE_ITEMS} total item types")
+    for item, qty in {**offer_items, **request_items}.items():
+        if not isinstance(qty, int) or qty <= 0:
+            raise ValueError(f"Invalid quantity for {item}: must be a positive integer")
+        if qty > MAX_TRADE_QUANTITY:
+            raise ValueError(f"Quantity for {item} exceeds limit ({MAX_TRADE_QUANTITY})")
 
     offerer = await session.get(Agent, offerer_id)
     if offerer is None:
@@ -208,6 +222,8 @@ async def invest_in_business(
         raise ValueError("Investor not found")
     if amount <= 0:
         raise ValueError("Investment amount must be positive")
+    if amount > MAX_INVESTMENT_AMOUNT:
+        raise ValueError(f"Investment exceeds limit ({MAX_INVESTMENT_AMOUNT} cents)")
     if investor.balance < amount:
         raise ValueError(f"Insufficient balance: have {investor.balance}, investing {amount}")
 

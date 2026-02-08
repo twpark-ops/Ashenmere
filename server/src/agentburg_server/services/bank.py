@@ -12,6 +12,11 @@ from agentburg_server.models.event import EventCategory, WorldEventLog
 
 logger = logging.getLogger(__name__)
 
+# Economic limits
+MAX_LOAN_AMOUNT = 500_000  # $5,000 in cents
+MAX_DEPOSIT_AMOUNT = 10_000_000  # $100,000 in cents
+MAX_WITHDRAWAL_AMOUNT = 10_000_000
+
 
 async def open_account(
     session: AsyncSession,
@@ -48,6 +53,8 @@ async def deposit(
     """Deposit funds from agent's wallet into a bank account."""
     if amount <= 0:
         raise ValueError("Deposit amount must be positive")
+    if amount > MAX_DEPOSIT_AMOUNT:
+        raise ValueError(f"Deposit exceeds limit ({MAX_DEPOSIT_AMOUNT} cents)")
 
     agent = await session.get(Agent, agent_id)
     account = await session.get(Account, account_id)
@@ -87,6 +94,8 @@ async def withdraw(
     """Withdraw funds from a bank account to agent's wallet."""
     if amount <= 0:
         raise ValueError("Withdrawal amount must be positive")
+    if amount > MAX_WITHDRAWAL_AMOUNT:
+        raise ValueError(f"Withdrawal exceeds limit ({MAX_WITHDRAWAL_AMOUNT} cents)")
 
     agent = await session.get(Agent, agent_id)
     account = await session.get(Account, account_id)
@@ -125,6 +134,8 @@ async def request_loan(
     """Request a loan based on the agent's credit score."""
     if amount <= 0:
         raise ValueError("Loan amount must be positive")
+    if amount > MAX_LOAN_AMOUNT:
+        raise ValueError(f"Loan exceeds absolute limit ({MAX_LOAN_AMOUNT} cents)")
 
     agent = await session.get(Agent, agent_id)
     if agent is None:

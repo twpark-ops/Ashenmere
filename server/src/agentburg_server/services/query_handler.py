@@ -174,10 +174,16 @@ async def handle_query(agent_id: UUID, msg: QueryMessage) -> QueryResult:
                 data=data,
             )
 
-    except Exception as e:
-        logger.exception("Error handling query %s for agent %s", msg.query, agent_id)
+    except ValueError as e:
         return QueryResult(
             request_id=msg.request_id,
             query=msg.query,
             data={"error": str(e)},
+        )
+    except Exception:
+        logger.exception("Error handling query %s for agent %s", msg.query, agent_id)
+        return QueryResult(
+            request_id=msg.request_id,
+            query=msg.query,
+            data={"error": "Internal query error"},
         )
