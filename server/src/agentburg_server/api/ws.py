@@ -2,6 +2,7 @@
 
 import contextlib
 import logging
+import secrets
 from hashlib import sha256
 from uuid import UUID
 
@@ -45,7 +46,8 @@ async def _authenticate(websocket: WebSocket, raw: dict) -> UUID | None:
         result = await session.execute(stmt)
         agent = result.scalar_one_or_none()
 
-        if agent is None:
+        # Constant-time verification to prevent timing side-channel attacks
+        if agent is None or not secrets.compare_digest(agent.api_token_hash, token_hash):
             await websocket.send_json(
                 AuthResult(success=False, message="Invalid agent token").model_dump(mode="json")
             )
