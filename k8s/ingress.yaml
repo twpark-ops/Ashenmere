@@ -50,3 +50,11 @@ spec:
                 name: grafana
                 port:
                   number: 3000
+          # Dashboard frontend (catch-all, must be last)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  number: 8080

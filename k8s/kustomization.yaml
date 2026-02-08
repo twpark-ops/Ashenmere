@@ -10,6 +10,7 @@ resources:
   - redis.yaml
   - nats.yaml
   - server-deployment.yaml
+  - dashboard.yaml
   - ingress.yaml
   - hpa.yaml
   - networkpolicy.yaml
