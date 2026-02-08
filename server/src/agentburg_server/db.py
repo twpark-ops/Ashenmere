@@ -21,9 +21,15 @@ async_session_factory = async_sessionmaker(
 )
 
 
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Return the current session factory (overridable for testing)."""
+    return async_session_factory
+
+
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield an async DB session for dependency injection."""
-    async with async_session_factory() as session:
+    factory = get_session_factory()
+    async with factory() as session:
         try:
             yield session
             await session.commit()

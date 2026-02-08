@@ -16,7 +16,7 @@ async def test_register_and_login(test_client: AsyncClient):
     """Full registration → login flow should return valid tokens."""
     # Register
     reg_resp = await test_client.post("/api/v1/auth/register", json={
-        "email": "flow@agentburg.test",
+        "email": "flow@example.com",
         "username": "flowtest",
         "password": "strongpassword123",
     })
@@ -24,11 +24,11 @@ async def test_register_and_login(test_client: AsyncClient):
     reg_data = reg_resp.json()
     assert reg_data["token_type"] == "bearer"
     assert "access_token" in reg_data
-    assert reg_data["user"]["email"] == "flow@agentburg.test"
+    assert reg_data["user"]["email"] == "flow@example.com"
 
     # Login with same credentials
     login_resp = await test_client.post("/api/v1/auth/login", json={
-        "email": "flow@agentburg.test",
+        "email": "flow@example.com",
         "password": "strongpassword123",
     })
     assert login_resp.status_code == 200
@@ -40,12 +40,12 @@ async def test_register_and_login(test_client: AsyncClient):
 async def test_register_duplicate_email(test_client: AsyncClient):
     """Registering with an existing email should return 409."""
     await test_client.post("/api/v1/auth/register", json={
-        "email": "dup@agentburg.test",
+        "email": "dup@example.com",
         "username": "user_dup1",
         "password": "password1234",
     })
     resp = await test_client.post("/api/v1/auth/register", json={
-        "email": "dup@agentburg.test",
+        "email": "dup@example.com",
         "username": "user_dup2",
         "password": "password5678",
     })
@@ -56,12 +56,12 @@ async def test_register_duplicate_email(test_client: AsyncClient):
 async def test_login_wrong_password(test_client: AsyncClient):
     """Login with wrong password should return 401."""
     await test_client.post("/api/v1/auth/register", json={
-        "email": "wrong@agentburg.test",
+        "email": "wrong@example.com",
         "username": "wrongpw",
         "password": "correctpassword",
     })
     resp = await test_client.post("/api/v1/auth/login", json={
-        "email": "wrong@agentburg.test",
+        "email": "wrong@example.com",
         "password": "incorrectpassword",
     })
     assert resp.status_code == 401
@@ -71,7 +71,7 @@ async def test_login_wrong_password(test_client: AsyncClient):
 async def test_get_me_authenticated(test_client: AsyncClient):
     """GET /auth/me with valid token should return user profile."""
     reg = await test_client.post("/api/v1/auth/register", json={
-        "email": "me@agentburg.test",
+        "email": "me@example.com",
         "username": "meuser",
         "password": "mepassword123",
     })
@@ -82,7 +82,7 @@ async def test_get_me_authenticated(test_client: AsyncClient):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 200
-    assert resp.json()["email"] == "me@agentburg.test"
+    assert resp.json()["email"] == "me@example.com"
 
 
 @pytest.mark.anyio
@@ -102,7 +102,7 @@ async def test_create_and_list_agents(test_client: AsyncClient):
     """Create an agent and verify it appears in the list."""
     # Register user
     reg = await test_client.post("/api/v1/auth/register", json={
-        "email": "agentcreator@agentburg.test",
+        "email": "agentcreator@example.com",
         "username": "agentcreator",
         "password": "createpass123",
     })

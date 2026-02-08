@@ -7,12 +7,17 @@ license = { text = "MIT" }
 requires-python = ">=3.13"
 authors = [{ name = "AgentBurg Team" }]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv]
+# Root is a virtual workspace — no package to build
+package = false
 
 [tool.uv.workspace]
 members = ["server", "client", "shared"]
+
+[tool.uv.sources]
+agentburg-shared = { workspace = true }
+agentburg-server = { workspace = true }
+agentburg-client = { workspace = true }
 
 [tool.ruff]
 target-version = "py313"

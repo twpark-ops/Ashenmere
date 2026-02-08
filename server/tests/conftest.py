@@ -12,31 +12,26 @@ from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import JSON, String, event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import event
 
-from agentburg_server.models.base import Base
-from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
-from agentburg_server.models.economy import Account, AccountType, MarketOrder, OrderSide, OrderStatus, Trade
-from agentburg_server.models.social import (
-    Business,
-    BusinessType,
-    CaseStatus,
-    CaseType,
-    Contract,
-    ContractStatus,
-    ContractType,
-    CourtCase,
-)
-from agentburg_server.models.event import EventCategory, WorldEventLog
-from agentburg_server.models.user import User
+
+# Force asyncio backend only — SQLAlchemy async does not support trio
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+from sqlalchemy.dialects.postgresql import JSONB
 
 # ---------------------------------------------------------------------------
 # SQLite type compatibility for PostgreSQL-specific column types
 # ---------------------------------------------------------------------------
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.pool import StaticPool
+
+from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
+from agentburg_server.models.base import Base
+from agentburg_server.models.user import User
 
 
 @compiles(PGUUID, "sqlite")
@@ -88,7 +83,7 @@ async def db_engine():
 
 
 @pytest.fixture(scope="function")
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(db_engine) -> AsyncGenerator[AsyncSession]:
     """Yield an async session bound to the test engine.
 
     Rolls back all changes after each test for full isolation.
@@ -110,25 +105,41 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="function")
-async def test_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def test_client(db_engine, db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Provide an async HTTPX client wired to the FastAPI app.
 
-    Overrides the ``get_session`` dependency so all requests
-    use the test database session.
+    Overrides both the ``get_session`` DI dependency and the
+    ``get_session_factory`` used by WebSocket handlers so all
+    database access goes through the test SQLite engine.
     """
+    import agentburg_server.db as db_module
     from agentburg_server.db import get_session
     from agentburg_server.main import app
 
-    async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
+    async def _override_get_session() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
     app.dependency_overrides[get_session] = _override_get_session
+
+    # Override session factory for WebSocket handlers (which use get_session_factory())
+    test_session_factory = async_sessionmaker(
+        db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    original_get_session_factory = db_module.get_session_factory
+
+    def _override_get_session_factory():
+        return test_session_factory
+
+    db_module.get_session_factory = _override_get_session_factory
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
 
     app.dependency_overrides.clear()
+    db_module.get_session_factory = original_get_session_factory
 
 
 # ---------------------------------------------------------------------------

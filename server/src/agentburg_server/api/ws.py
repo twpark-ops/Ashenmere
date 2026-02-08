@@ -8,19 +8,18 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from sqlalchemy import select
 
+import agentburg_server.db as _db
+from agentburg_server.models.agent import Agent
+from agentburg_server.services.action_handler import handle_action
+from agentburg_server.services.query_handler import handle_query
 from agentburg_shared.protocol.messages import (
     ActionMessage,
-    ActionResult,
     AuthenticateMessage,
     AuthResult,
     ErrorMessage,
     MessageType,
     QueryMessage,
 )
-from agentburg_server.db import async_session_factory
-from agentburg_server.models.agent import Agent
-from agentburg_server.services.action_handler import handle_action
-from agentburg_server.services.query_handler import handle_query
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ async def _authenticate(websocket: WebSocket, raw: dict) -> UUID | None:
     # Hash the raw token to compare against stored hash
     token_hash = sha256(auth_msg.agent_token.encode()).hexdigest()
 
-    async with async_session_factory() as session:
+    async with _db.get_session_factory()() as session:
         stmt = select(Agent).where(Agent.api_token_hash == token_hash)
         result = await session.execute(stmt)
         agent = result.scalar_one_or_none()
@@ -153,7 +152,7 @@ async def agent_websocket(websocket: WebSocket) -> None:
             _connections.pop(agent_id, None)
             # Mark agent as disconnected
             try:
-                async with async_session_factory() as session:
+                async with _db.get_session_factory()() as session:
                     agent = await session.get(Agent, agent_id)
                     if agent:
                         agent.is_connected = False

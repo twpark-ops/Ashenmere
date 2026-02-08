@@ -3,20 +3,19 @@
 import logging
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
-from agentburg_shared.protocol.messages import QueryMessage, QueryResult, QueryType
-from agentburg_server.db import async_session_factory
+import agentburg_server.db as _db
 from agentburg_server.models.agent import Agent, AgentStatus
 from agentburg_server.models.economy import (
-    Account,
     MarketOrder,
     OrderStatus,
     Property,
     Trade,
 )
-from agentburg_server.models.social import Business, CourtCase, CaseStatus
+from agentburg_server.models.social import Business, CaseStatus, CourtCase
 from agentburg_server.services.market import get_market_prices
+from agentburg_shared.protocol.messages import QueryMessage, QueryResult, QueryType
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 async def handle_query(agent_id: UUID, msg: QueryMessage) -> QueryResult:
     """Dispatch a query message and return results."""
     try:
-        async with async_session_factory() as session:
+        async with _db.get_session_factory()() as session:
             data: dict = {}
 
             if msg.query == QueryType.MY_BALANCE:

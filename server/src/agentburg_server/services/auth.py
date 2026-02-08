@@ -8,7 +8,7 @@ from uuid import UUID
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.config import settings
@@ -106,8 +106,10 @@ async def create_agent(
     Returns:
         (agent, raw_token) — raw_token must be given to the user once; it cannot be retrieved later.
     """
-    # Check agent limit
-    agent_count = len(owner.agents) if owner.agents else 0
+    # Check agent limit (use query to avoid lazy-loading in async context)
+    count_stmt = select(func.count()).select_from(Agent).where(Agent.owner_id == owner.id)
+    result = await session.execute(count_stmt)
+    agent_count = result.scalar() or 0
     if agent_count >= owner.max_agents:
         raise ValueError(f"Agent limit reached ({owner.max_agents})")
 

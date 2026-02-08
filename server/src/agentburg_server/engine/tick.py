@@ -11,18 +11,18 @@ Each tick:
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import agentburg_server.db as _db
 from agentburg_server.config import settings
-from agentburg_server.db import async_session_factory
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.social import Contract, ContractStatus, ContractType
-from agentburg_server.services.market import run_batch_auction
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
+from agentburg_server.services.market import run_batch_auction
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +71,9 @@ class TickEngine:
 
     async def _process_tick(self) -> None:
         """Process a single world tick."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
 
-        async with async_session_factory() as session:
+        async with _db.get_session_factory()() as session:
             # 1. Run batch auction for market orders
             trades = await run_batch_auction(session, self.tick)
 
@@ -90,7 +90,7 @@ class TickEngine:
 
             await session.commit()
 
-        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
+        elapsed = (datetime.now(UTC) - start).total_seconds()
 
         # Broadcast tick update to connected agents
         await self._broadcast_tick_update()
@@ -107,14 +107,14 @@ class TickEngine:
         Each agent receives their own state (balance, inventory, reputation)
         plus shared market data and any relevant observations.
         """
-        from agentburg_server.api.ws import get_connected_agents, broadcast_to_agent
+        from agentburg_server.api.ws import broadcast_to_agent, get_connected_agents
         from agentburg_server.services.market import get_market_prices
 
         connected = get_connected_agents()
         if not connected:
             return
 
-        async with async_session_factory() as session:
+        async with _db.get_session_factory()() as session:
             # Fetch market data once for all agents
             prices = await get_market_prices(session)
             market_data = {"prices": prices}
@@ -151,7 +151,7 @@ class TickEngine:
         tick_in_day = self.tick % self.ticks_per_day
         hour = (tick_in_day * 24) // self.ticks_per_day
         minute = ((tick_in_day * 24 * 60) // self.ticks_per_day) % 60
-        return datetime(2026, 1, 1, hour, minute, tzinfo=timezone.utc) + timedelta(days=day)
+        return datetime(2026, 1, 1, hour, minute, tzinfo=UTC) + timedelta(days=day)
 
 
 async def _process_contract_payments(session: AsyncSession, tick: int) -> int:

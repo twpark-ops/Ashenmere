@@ -6,17 +6,15 @@ from hashlib import sha256
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
-from agentburg_server.models.economy import MarketOrder, OrderSide, OrderStatus, Trade
+from agentburg_server.models.economy import OrderSide, OrderStatus
 from agentburg_server.services.market import (
     cancel_order,
     place_order,
     run_batch_auction,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -176,7 +174,7 @@ async def test_place_order_quantity_limit(db_session: AsyncSession):
 async def test_batch_auction_matching(db_session: AsyncSession):
     """Crossing buy and sell orders should produce a trade at the midpoint price."""
     buyer = await _make_agent(db_session, name="Buyer", balance=50_000)
-    seller = await _make_agent(db_session, name="Seller", inventory={"wheat": 100})
+    seller = await _make_agent(db_session, name="Seller", balance=0, inventory={"wheat": 100})
 
     # Buyer offers 120 cents, seller asks 80 cents -> midpoint = 100
     await place_order(

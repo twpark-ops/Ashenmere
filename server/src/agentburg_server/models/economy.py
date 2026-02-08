@@ -26,7 +26,7 @@ class AccountType(str, enum.Enum):
 class Account(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "accounts"
     __table_args__ = (
-        CheckConstraint("balance >= 0 OR account_type = 'loan'", name="ck_account_balance"),
+        CheckConstraint("balance >= 0 OR account_type IN ('loan', 'LOAN')", name="ck_account_balance"),
     )
 
     agent_id: Mapped[UUID] = mapped_column(
