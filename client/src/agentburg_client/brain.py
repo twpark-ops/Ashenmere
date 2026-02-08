@@ -1,17 +1,23 @@
 """Agent brain — LLM-powered decision engine.
 
 Takes world observations and produces action decisions using the configured LLM.
+Includes timeout handling, retry with exponential backoff, structured output
+validation, and token usage tracking.
 """
 
+import asyncio
 import json
 import logging
+import random
+import time
+from dataclasses import dataclass, field
 from typing import Any
 
 import litellm
 
 from agentburg_client.config import AgentConfig
-from agentburg_client.memory import Memory
-from agentburg_shared.protocol.messages import ActionType, QueryType
+from agentburg_client.memory import Memory, MemoryCategory
+from agentburg_shared.protocol.messages import ActionType
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +80,65 @@ RELEVANT MEMORIES:
 
 What will you do? Respond with a single action in JSON format."""
 
+# Set of valid action type values for fast lookup
+_VALID_ACTIONS: frozenset[str] = frozenset(a.value for a in ActionType)
+
+
+@dataclass
+class TokenUsage:
+    """Tracks cumulative LLM token usage across decisions."""
+
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_decisions: int = 0
+    total_failures: int = 0
+    _history: list[dict[str, Any]] = field(default_factory=list)
+
+    def record(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        model: str,
+        duration_ms: float,
+    ) -> None:
+        """Record token usage for a single LLM call."""
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        self.total_decisions += 1
+        entry = {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "model": model,
+            "duration_ms": round(duration_ms, 1),
+        }
+        self._history.append(entry)
+        logger.info(
+            "LLM tokens — in: %d, out: %d, model: %s, latency: %.0fms | "
+            "cumulative — in: %d, out: %d, decisions: %d",
+            input_tokens,
+            output_tokens,
+            model,
+            duration_ms,
+            self.total_input_tokens,
+            self.total_output_tokens,
+            self.total_decisions,
+        )
+
+    def record_failure(self) -> None:
+        """Record a failed LLM call."""
+        self.total_failures += 1
+
 
 class AgentBrain:
-    """LLM-powered agent decision engine."""
+    """LLM-powered agent decision engine with retry, timeout, and token tracking."""
 
     def __init__(self, config: AgentConfig) -> None:
         self.config = config
-        self.memory = Memory(max_size=config.memory_size)
+        self.memory = Memory(
+            max_size=config.memory_size,
+            db_path=config.memory_db_path,
+        )
+        self.token_usage = TokenUsage()
 
         # Configure LiteLLM
         if config.llm.api_base:
@@ -101,19 +159,22 @@ class AgentBrain:
     async def decide(self, tick_data: dict[str, Any]) -> dict[str, Any]:
         """Make a decision based on current world state.
 
+        Calls the LLM with timeout and retry logic.
         Returns dict with 'action', 'params', and 'reasoning' keys.
+        Falls back to IDLE if all retries fail.
         """
         # Build the decision prompt
         agent = tick_data.get("agent", {})
         market = tick_data.get("market", {})
         observations = tick_data.get("observations", [])
+        tick = tick_data.get("tick", 0)
 
         # Get relevant memories
-        context = f"tick={tick_data.get('tick', 0)} balance={agent.get('balance', 0)}"
+        context = f"tick={tick} balance={agent.get('balance', 0)}"
         memories = self.memory.recall(context, limit=5)
 
         prompt = DECISION_PROMPT.format(
-            tick=tick_data.get("tick", 0),
+            tick=tick,
             balance=agent.get("balance", 0),
             inventory=json.dumps(agent.get("inventory", {})),
             location=agent.get("location", "unknown"),
@@ -124,11 +185,75 @@ class AgentBrain:
             memories="\n".join(f"- {m}" for m in memories) or "- No relevant memories.",
         )
 
-        try:
-            # Build model string for LiteLLM
-            model = self._get_model_string()
+        max_retries = self.config.llm.max_retries
+        timeout = self.config.llm.timeout
+        last_error: Exception | None = None
 
-            response = await litellm.acompletion(
+        for attempt in range(1, max_retries + 1):
+            try:
+                decision = await self._call_llm_with_timeout(prompt, timeout)
+
+                # Store the decision as a memory
+                self.memory.store(
+                    f"Tick {tick}: Chose {decision['action']} — {decision.get('reasoning', '')}",
+                    category=MemoryCategory.DECISION,
+                    tick=tick,
+                )
+                return decision
+
+            except TimeoutError:
+                last_error = TimeoutError(f"LLM call timed out after {timeout}s")
+                logger.warning(
+                    "LLM call timed out (attempt %d/%d, timeout=%.1fs)",
+                    attempt, max_retries, timeout,
+                )
+                self.token_usage.record_failure()
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    "LLM call failed (attempt %d/%d): %s",
+                    attempt, max_retries, e,
+                )
+                self.token_usage.record_failure()
+
+            # Exponential backoff with jitter between retries
+            if attempt < max_retries:
+                backoff = min(2 ** (attempt - 1), 10.0) + random.uniform(0, 1)  # noqa: S311
+                logger.debug("Retrying in %.1fs...", backoff)
+                await asyncio.sleep(backoff)
+
+        # All retries exhausted — fall back to idle
+        logger.error(
+            "LLM failed after %d attempts. Last error: %s. Falling back to IDLE.",
+            max_retries, last_error,
+        )
+        fallback = {
+            "action": ActionType.IDLE,
+            "params": {},
+            "reasoning": f"LLM unavailable after {max_retries} retries: {last_error}",
+        }
+        self.memory.store(
+            f"Tick {tick}: LLM failure, forced IDLE — {last_error}",
+            category=MemoryCategory.DECISION,
+            tick=tick,
+            importance=0.8,
+        )
+        return fallback
+
+    async def _call_llm_with_timeout(
+        self, prompt: str, timeout: float
+    ) -> dict[str, Any]:
+        """Call the LLM with a timeout wrapper and parse the response.
+
+        Raises asyncio.TimeoutError if the call exceeds the timeout.
+        Raises ValueError if the response cannot be parsed.
+        """
+        model = self._get_model_string()
+        start_time = time.monotonic()
+
+        response = await asyncio.wait_for(
+            litellm.acompletion(
                 model=model,
                 messages=[
                     {"role": "system", "content": self._system_prompt},
@@ -137,26 +262,37 @@ class AgentBrain:
                 temperature=self.config.llm.temperature,
                 max_tokens=self.config.llm.max_tokens,
                 api_key=self.config.llm.api_key or None,
-            )
+            ),
+            timeout=timeout,
+        )
 
-            raw_text = response.choices[0].message.content.strip()
-            decision = self._parse_decision(raw_text)
+        elapsed_ms = (time.monotonic() - start_time) * 1000
 
-            # Store the decision as a memory
-            self.memory.store(
-                f"Tick {tick_data.get('tick', 0)}: Chose {decision['action']} — {decision.get('reasoning', '')}"
-            )
+        # Extract token usage from response
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "prompt_tokens", 0) or 0
+        output_tokens = getattr(usage, "completion_tokens", 0) or 0
+        self.token_usage.record(input_tokens, output_tokens, model, elapsed_ms)
 
-            return decision
+        raw_text = response.choices[0].message.content.strip()
+        decision = self._parse_decision(raw_text)
+        return decision
 
-        except Exception as e:
-            logger.exception("LLM decision failed")
-            # Fallback to idle
-            return {"action": ActionType.IDLE, "params": {}, "reasoning": f"LLM error: {e}"}
-
-    def process_observation(self, observation: str) -> None:
+    def process_observation(self, observation: str, tick: int = 0) -> None:
         """Store an observation as a memory."""
-        self.memory.store(observation)
+        self.memory.store(
+            observation,
+            category=MemoryCategory.OBSERVATION,
+            tick=tick,
+        )
+
+    def process_interaction(self, interaction: str, tick: int = 0) -> None:
+        """Store an agent interaction as a memory."""
+        self.memory.store(
+            interaction,
+            category=MemoryCategory.INTERACTION,
+            tick=tick,
+        )
 
     def _get_model_string(self) -> str:
         """Build LiteLLM model string from config."""
@@ -173,8 +309,12 @@ class AgentBrain:
             return f"{provider}/{model}"
 
     def _parse_decision(self, raw: str) -> dict[str, Any]:
-        """Parse LLM output into a structured decision."""
-        # Try to extract JSON from the response
+        """Parse LLM output into a structured decision.
+
+        Validates the action type against the known set. If the output is
+        unparseable or contains an invalid action, logs a warning and
+        returns IDLE.
+        """
         try:
             # Handle markdown code blocks
             if "```" in raw:
@@ -185,21 +325,42 @@ class AgentBrain:
             else:
                 data = json.loads(raw)
 
-            action = data.get("action", "idle")
-            # Validate action type
-            try:
-                action = ActionType(action)
-            except ValueError:
-                action = ActionType.IDLE
+            if not isinstance(data, dict):
+                logger.warning("LLM returned non-dict JSON: %s", type(data).__name__)
+                return self._idle_decision("LLM returned non-dict response")
+
+            action_str = data.get("action", "idle")
+
+            # Validate action type against known enum values
+            if action_str not in _VALID_ACTIONS:
+                logger.warning(
+                    "LLM returned invalid action '%s', falling back to idle. "
+                    "Valid actions: %s",
+                    action_str,
+                    sorted(_VALID_ACTIONS),
+                )
+                return self._idle_decision(f"Invalid action '{action_str}'")
+
+            action = ActionType(action_str)
+
+            params = data.get("params", {})
+            if not isinstance(params, dict):
+                logger.warning("LLM returned non-dict params: %s", type(params).__name__)
+                params = {}
 
             return {
                 "action": action,
-                "params": data.get("params", {}),
-                "reasoning": data.get("reasoning", ""),
+                "params": params,
+                "reasoning": str(data.get("reasoning", "")),
             }
-        except (json.JSONDecodeError, IndexError, KeyError):
-            logger.warning("Failed to parse LLM decision: %s", raw[:200])
-            return {"action": ActionType.IDLE, "params": {}, "reasoning": "Failed to parse decision"}
+        except (json.JSONDecodeError, IndexError, KeyError) as e:
+            logger.warning("Failed to parse LLM decision (%s): %s", type(e).__name__, raw[:200])
+            return self._idle_decision("Failed to parse LLM output")
+
+    @staticmethod
+    def _idle_decision(reason: str) -> dict[str, Any]:
+        """Create a fallback IDLE decision."""
+        return {"action": ActionType.IDLE, "params": {}, "reasoning": reason}
 
     def _format_market(self, market: dict) -> str:
         """Format market data for the prompt."""
