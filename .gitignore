@@ -56,6 +56,7 @@ uv.lock
 .claude/
 CLAUDE.md
 .claude.md
+.serena/
 
 # Internal docs (not for public repo)
 docs/internal/
