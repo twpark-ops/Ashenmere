@@ -66,6 +66,7 @@ TECH_EVALUATION.md
 # Node / Dashboard
 node_modules/
 dashboard/dist/
+*.tsbuildinfo
 
 # Secrets & credentials
 *.pem

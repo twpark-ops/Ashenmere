@@ -14,7 +14,7 @@ dependencies = [
     "aiosqlite>=0.20.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=1.0",

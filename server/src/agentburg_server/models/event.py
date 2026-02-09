@@ -41,6 +41,4 @@ class WorldEventLog(Base, UUIDMixin):
     target_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

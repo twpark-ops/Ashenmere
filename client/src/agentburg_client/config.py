@@ -25,7 +25,9 @@ class LLMConfig(BaseModel):
     max_tokens: int = Field(default=500, ge=1, le=128_000)
     timeout: float = Field(default=30.0, gt=0.0, description="LLM call timeout in seconds")
     max_retries: int = Field(
-        default=3, ge=0, le=10,
+        default=3,
+        ge=0,
+        le=10,
         description="Max retries for transient LLM failures",
     )
 
@@ -34,16 +36,26 @@ class LLMConfig(BaseModel):
     def validate_provider(cls, v: str) -> str:
         """Ensure provider is a known LLM provider string."""
         allowed = {
-            "ollama", "openai", "anthropic", "azure", "cohere",
-            "huggingface", "replicate", "together_ai", "bedrock",
-            "vertex_ai", "groq", "deepseek", "mistral",
+            "ollama",
+            "openai",
+            "anthropic",
+            "azure",
+            "cohere",
+            "huggingface",
+            "replicate",
+            "together_ai",
+            "bedrock",
+            "vertex_ai",
+            "groq",
+            "deepseek",
+            "mistral",
         }
         v = v.strip().lower()
         if v not in allowed:
             logger.warning(
-                "LLM provider '%s' is not in the known set %s. "
-                "Proceeding anyway — LiteLLM may still support it.",
-                v, sorted(allowed),
+                "LLM provider '%s' is not in the known set %s. Proceeding anyway — LiteLLM may still support it.",
+                v,
+                sorted(allowed),
             )
         return v
 
@@ -64,9 +76,7 @@ class LLMConfig(BaseModel):
         """Validate API base URL format when provided."""
         v = v.strip()
         if v and not v.startswith(("http://", "https://")):
-            raise ValueError(
-                f"api_base must start with http:// or https://, got: '{v}'"
-            )
+            raise ValueError(f"api_base must start with http:// or https://, got: '{v}'")
         return v
 
 
@@ -93,19 +103,26 @@ class ServerConfig(BaseModel):
     url: str = "ws://localhost:8000/ws"
     token: str = ""  # Agent API token from server registration
     reconnect_delay: float = Field(
-        default=1.0, gt=0.0, le=300.0,
+        default=1.0,
+        gt=0.0,
+        le=300.0,
         description="Base reconnection delay in seconds (used for exponential backoff)",
     )
     max_reconnect_delay: float = Field(
-        default=60.0, gt=0.0, le=600.0,
+        default=60.0,
+        gt=0.0,
+        le=600.0,
         description="Maximum reconnection delay in seconds",
     )
     max_reconnect_attempts: int = Field(
-        default=0, ge=0,
+        default=0,
+        ge=0,
         description="Max reconnect attempts (0 = unlimited)",
     )
     heartbeat_interval: float = Field(
-        default=30.0, gt=0.0, le=300.0,
+        default=30.0,
+        gt=0.0,
+        le=300.0,
         description="Ping-pong heartbeat interval in seconds",
     )
 
@@ -117,9 +134,7 @@ class ServerConfig(BaseModel):
         if not v:
             raise ValueError("Server URL must not be empty")
         if not v.startswith(("ws://", "wss://")):
-            raise ValueError(
-                f"Server URL must start with ws:// or wss://, got: '{v}'"
-            )
+            raise ValueError(f"Server URL must start with ws:// or wss://, got: '{v}'")
         return v
 
     @model_validator(mode="after")
@@ -175,8 +190,7 @@ class AgentConfig(BaseModel):
         """Warn if token is empty — connection will likely fail."""
         if not self.server.token:
             logger.warning(
-                "server.token is empty — authentication will likely fail. "
-                "Register your agent at the server first."
+                "server.token is empty — authentication will likely fail. Register your agent at the server first."
             )
         return self
 

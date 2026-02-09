@@ -14,11 +14,14 @@ from httpx import AsyncClient
 async def test_register_and_login(test_client: AsyncClient):
     """Full registration → login flow should return valid tokens."""
     # Register
-    reg_resp = await test_client.post("/api/v1/auth/register", json={
-        "email": "flow@example.com",
-        "username": "flowtest",
-        "password": "strongpassword123",
-    })
+    reg_resp = await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "flow@example.com",
+            "username": "flowtest",
+            "password": "strongpassword123",
+        },
+    )
     assert reg_resp.status_code == 201
     reg_data = reg_resp.json()
     assert reg_data["token_type"] == "bearer"
@@ -26,10 +29,13 @@ async def test_register_and_login(test_client: AsyncClient):
     assert reg_data["user"]["email"] == "flow@example.com"
 
     # Login with same credentials
-    login_resp = await test_client.post("/api/v1/auth/login", json={
-        "email": "flow@example.com",
-        "password": "strongpassword123",
-    })
+    login_resp = await test_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "flow@example.com",
+            "password": "strongpassword123",
+        },
+    )
     assert login_resp.status_code == 200
     login_data = login_resp.json()
     assert "access_token" in login_data
@@ -38,42 +44,57 @@ async def test_register_and_login(test_client: AsyncClient):
 @pytest.mark.anyio
 async def test_register_duplicate_email(test_client: AsyncClient):
     """Registering with an existing email should return 409."""
-    await test_client.post("/api/v1/auth/register", json={
-        "email": "dup@example.com",
-        "username": "user_dup1",
-        "password": "password1234",
-    })
-    resp = await test_client.post("/api/v1/auth/register", json={
-        "email": "dup@example.com",
-        "username": "user_dup2",
-        "password": "password5678",
-    })
+    await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "dup@example.com",
+            "username": "user_dup1",
+            "password": "password1234",
+        },
+    )
+    resp = await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "dup@example.com",
+            "username": "user_dup2",
+            "password": "password5678",
+        },
+    )
     assert resp.status_code == 409
 
 
 @pytest.mark.anyio
 async def test_login_wrong_password(test_client: AsyncClient):
     """Login with wrong password should return 401."""
-    await test_client.post("/api/v1/auth/register", json={
-        "email": "wrong@example.com",
-        "username": "wrongpw",
-        "password": "correctpassword",
-    })
-    resp = await test_client.post("/api/v1/auth/login", json={
-        "email": "wrong@example.com",
-        "password": "incorrectpassword",
-    })
+    await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "wrong@example.com",
+            "username": "wrongpw",
+            "password": "correctpassword",
+        },
+    )
+    resp = await test_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "wrong@example.com",
+            "password": "incorrectpassword",
+        },
+    )
     assert resp.status_code == 401
 
 
 @pytest.mark.anyio
 async def test_get_me_authenticated(test_client: AsyncClient):
     """GET /auth/me with valid token should return user profile."""
-    reg = await test_client.post("/api/v1/auth/register", json={
-        "email": "me@example.com",
-        "username": "meuser",
-        "password": "mepassword123",
-    })
+    reg = await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "me@example.com",
+            "username": "meuser",
+            "password": "mepassword123",
+        },
+    )
     token = reg.json()["access_token"]
 
     resp = await test_client.get(
@@ -100,20 +121,27 @@ async def test_get_me_unauthenticated(test_client: AsyncClient):
 async def test_create_and_list_agents(test_client: AsyncClient):
     """Create an agent and verify it appears in the list."""
     # Register user
-    reg = await test_client.post("/api/v1/auth/register", json={
-        "email": "agentcreator@example.com",
-        "username": "agentcreator",
-        "password": "createpass123",
-    })
+    reg = await test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "agentcreator@example.com",
+            "username": "agentcreator",
+            "password": "createpass123",
+        },
+    )
     token = reg.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Create agent
-    create_resp = await test_client.post("/api/v1/agents", json={
-        "name": "TestTrader",
-        "title": "Merchant",
-        "bio": "A test trading agent",
-    }, headers=headers)
+    create_resp = await test_client.post(
+        "/api/v1/agents",
+        json={
+            "name": "TestTrader",
+            "title": "Merchant",
+            "bio": "A test trading agent",
+        },
+        headers=headers,
+    )
     assert create_resp.status_code == 201
     agent_data = create_resp.json()
     assert agent_data["agent"]["name"] == "TestTrader"
@@ -135,9 +163,12 @@ async def test_create_and_list_agents(test_client: AsyncClient):
 @pytest.mark.anyio
 async def test_create_agent_unauthenticated(test_client: AsyncClient):
     """Creating an agent without authentication should fail."""
-    resp = await test_client.post("/api/v1/agents", json={
-        "name": "Unauthorized",
-    })
+    resp = await test_client.post(
+        "/api/v1/agents",
+        json={
+            "name": "Unauthorized",
+        },
+    )
     assert resp.status_code in (401, 403)
 
 
@@ -145,6 +176,7 @@ async def test_create_agent_unauthenticated(test_client: AsyncClient):
 async def test_get_nonexistent_agent(test_client: AsyncClient):
     """Getting a non-existent agent should return 404."""
     from uuid import uuid4
+
     resp = await test_client.get(f"/api/v1/agents/{uuid4()}")
     assert resp.status_code == 404
 

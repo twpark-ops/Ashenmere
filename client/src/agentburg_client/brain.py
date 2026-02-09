@@ -114,8 +114,7 @@ class TokenUsage:
         }
         self._history.append(entry)
         logger.info(
-            "LLM tokens — in: %d, out: %d, model: %s, latency: %.0fms | "
-            "cumulative — in: %d, out: %d, decisions: %d",
+            "LLM tokens — in: %d, out: %d, model: %s, latency: %.0fms | cumulative — in: %d, out: %d, decisions: %d",
             input_tokens,
             output_tokens,
             model,
@@ -216,7 +215,9 @@ class AgentBrain:
                 last_error = TimeoutError(f"LLM call timed out after {timeout}s")
                 logger.warning(
                     "LLM call timed out (attempt %d/%d, timeout=%.1fs)",
-                    attempt, max_retries, timeout,
+                    attempt,
+                    max_retries,
+                    timeout,
                 )
                 self.token_usage.record_failure()
 
@@ -224,7 +225,9 @@ class AgentBrain:
                 last_error = e
                 logger.warning(
                     "LLM call failed (attempt %d/%d): %s",
-                    attempt, max_retries, e,
+                    attempt,
+                    max_retries,
+                    e,
                 )
                 self.token_usage.record_failure()
 
@@ -237,7 +240,8 @@ class AgentBrain:
         # All retries exhausted — fall back to idle
         logger.error(
             "LLM failed after %d attempts. Last error: %s. Falling back to IDLE.",
-            max_retries, last_error,
+            max_retries,
+            last_error,
         )
         fallback = {
             "action": ActionType.IDLE,
@@ -252,9 +256,7 @@ class AgentBrain:
         )
         return fallback
 
-    async def _call_llm_with_timeout(
-        self, prompt: str, timeout: float
-    ) -> dict[str, Any]:
+    async def _call_llm_with_timeout(self, prompt: str, timeout: float) -> dict[str, Any]:
         """Call the LLM with a timeout wrapper and parse the response.
 
         Raises asyncio.TimeoutError if the call exceeds the timeout.
@@ -344,8 +346,7 @@ class AgentBrain:
             # Validate action type against known enum values
             if action_str not in _VALID_ACTIONS:
                 logger.warning(
-                    "LLM returned invalid action '%s', falling back to idle. "
-                    "Valid actions: %s",
+                    "LLM returned invalid action '%s', falling back to idle. Valid actions: %s",
                     action_str,
                     sorted(_VALID_ACTIONS),
                 )

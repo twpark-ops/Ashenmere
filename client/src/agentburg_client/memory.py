@@ -76,14 +76,36 @@ def compute_importance(
 
     # High-importance keywords (financial outcomes, threats, opportunities)
     high_keywords = {
-        "failed", "error", "bankrupt", "profit", "loss", "lawsuit", "sued",
-        "critical", "warning", "opportunity", "deal", "rich", "poor",
-        "reputation", "credit", "loan", "debt",
+        "failed",
+        "error",
+        "bankrupt",
+        "profit",
+        "loss",
+        "lawsuit",
+        "sued",
+        "critical",
+        "warning",
+        "opportunity",
+        "deal",
+        "rich",
+        "poor",
+        "reputation",
+        "credit",
+        "loan",
+        "debt",
     }
     # Medium-importance keywords
     medium_keywords = {
-        "buy", "sell", "trade", "invest", "business", "price",
-        "market", "change", "new", "started",
+        "buy",
+        "sell",
+        "trade",
+        "invest",
+        "business",
+        "price",
+        "market",
+        "change",
+        "new",
+        "started",
     }
 
     for kw in high_keywords:
@@ -291,10 +313,7 @@ class Memory:
         try:
             import aiosqlite
         except ImportError:
-            logger.warning(
-                "aiosqlite not installed — memory persistence disabled. "
-                "Install with: pip install aiosqlite"
-            )
+            logger.warning("aiosqlite not installed — memory persistence disabled. Install with: pip install aiosqlite")
             return
 
         try:

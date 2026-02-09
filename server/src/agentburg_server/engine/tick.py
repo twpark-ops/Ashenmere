@@ -156,7 +156,12 @@ class TickEngine:
         if self.tick % 100 == 0 or trades or verdicts:
             logger.info(
                 "Tick %d (%.3fs): %d trades, %d verdicts, %d payments, %d interest",
-                self.tick, elapsed, len(trades), len(verdicts), payments, interest_processed,
+                self.tick,
+                elapsed,
+                len(trades),
+                len(verdicts),
+                payments,
+                interest_processed,
             )
 
     async def _broadcast_tick_update(self) -> None:
@@ -279,7 +284,9 @@ async def _process_contract_payments(session: AsyncSession, tick: int) -> int:
             employer.reputation = max(0, employer.reputation - 20)
             logger.warning(
                 "Contract %s breached: employer %s cannot pay salary %d",
-                contract.id, employer.name, salary,
+                contract.id,
+                employer.name,
+                salary,
             )
 
     return payments_made

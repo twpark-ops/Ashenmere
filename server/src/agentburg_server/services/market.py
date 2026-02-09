@@ -238,9 +238,7 @@ async def run_batch_auction(session: AsyncSession, tick: int) -> list[Trade]:
     return trades
 
 
-async def cancel_order(
-    session: AsyncSession, order_id: UUID, agent_id: UUID, tick: int
-) -> MarketOrder:
+async def cancel_order(session: AsyncSession, order_id: UUID, agent_id: UUID, tick: int) -> MarketOrder:
     """Cancel an open order and refund reserved funds/items."""
     order = await session.get(MarketOrder, order_id)
     if order is None:
@@ -299,13 +297,10 @@ async def get_market_prices(session: AsyncSession) -> dict[str, int]:
 async def _expire_orders(session: AsyncSession, tick: int) -> int:
     """Expire orders that have passed their expiry tick and refund reserved funds/items."""
     # Fetch orders that need expiration (must read individually for refunds)
-    stmt = (
-        select(MarketOrder)
-        .where(
-            MarketOrder.status.in_([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
-            MarketOrder.tick_expires.is_not(None),
-            MarketOrder.tick_expires <= tick,
-        )
+    stmt = select(MarketOrder).where(
+        MarketOrder.status.in_([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
+        MarketOrder.tick_expires.is_not(None),
+        MarketOrder.tick_expires <= tick,
     )
     result = await session.execute(stmt)
     expired_orders = list(result.scalars().all())

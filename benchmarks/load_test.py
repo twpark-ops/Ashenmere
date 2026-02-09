@@ -20,12 +20,9 @@ import argparse
 import asyncio
 import json
 import logging
-import secrets
 import statistics
-import sys
 import time
 from dataclasses import dataclass, field
-from hashlib import sha256
 from uuid import UUID, uuid4
 
 import websockets
@@ -87,8 +84,12 @@ def _stats(values: list[float]) -> dict:
         "max_ms": round(max(values) * 1000, 2),
         "mean_ms": round(statistics.mean(values) * 1000, 2),
         "median_ms": round(statistics.median(values) * 1000, 2),
-        "p95_ms": round(sorted(values)[int(len(values) * 0.95)] * 1000, 2) if len(values) > 1 else 0,
-        "p99_ms": round(sorted(values)[int(len(values) * 0.99)] * 1000, 2) if len(values) > 1 else 0,
+        "p95_ms": round(sorted(values)[int(len(values) * 0.95)] * 1000, 2)
+        if len(values) > 1
+        else 0,
+        "p99_ms": round(sorted(values)[int(len(values) * 0.99)] * 1000, 2)
+        if len(values) > 1
+        else 0,
     }
 
 
@@ -97,7 +98,7 @@ async def create_test_agents(
     count: int,
     *,
     admin_email: str = "admin@agentburg.world",
-    admin_password: str = "admin123",
+    admin_password: str = "admin123",  # noqa: S107
 ) -> list[tuple[UUID, str]]:
     """Create test agents via the REST API and return (agent_id, raw_token) pairs.
 
@@ -109,10 +110,13 @@ async def create_test_agents(
 
     async with httpx.AsyncClient(base_url=base_url, timeout=30) as client:
         # Login as admin
-        resp = await client.post("/api/v1/auth/login", json={
-            "email": admin_email,
-            "password": admin_password,
-        })
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": admin_email,
+                "password": admin_password,
+            },
+        )
         if resp.status_code != 200:
             logger.error("Admin login failed: %s", resp.text)
             return agents
@@ -167,10 +171,14 @@ async def run_agent(
                 result.connect_times.append(connect_time)
 
                 # Authenticate
-                await ws.send(json.dumps({
-                    "type": "authenticate",
-                    "agent_token": token,
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "authenticate",
+                            "agent_token": token,
+                        }
+                    )
+                )
                 auth_resp = json.loads(await ws.recv())
                 if not auth_resp.get("success"):
                     result.errors.append(f"Auth failed: {auth_resp.get('message')}")
@@ -252,7 +260,9 @@ async def main(
     result = BenchmarkResult(total_agents=num_agents)
 
     logger.info("=== AgentBurg Load Test ===")
-    logger.info("Agents: %d, Actions per agent: %d, Concurrency: %d", num_agents, num_actions, concurrency)
+    logger.info(
+        "Agents: %d, Actions per agent: %d, Concurrency: %d", num_agents, num_actions, concurrency
+    )
 
     # Step 1: Create agents via REST API
     logger.info("Creating %d test agents...", num_agents)
@@ -268,10 +278,7 @@ async def main(
     semaphore = asyncio.Semaphore(concurrency)
     result.start_time = time.monotonic()
 
-    tasks = [
-        run_agent(ws_url, token, num_actions, result, semaphore)
-        for _, token in agents
-    ]
+    tasks = [run_agent(ws_url, token, num_actions, result, semaphore) for _, token in agents]
     await asyncio.gather(*tasks)
 
     result.end_time = time.monotonic()

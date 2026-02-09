@@ -48,9 +48,7 @@ async def _authenticate(websocket: WebSocket, raw: dict) -> UUID | None:
 
         # Constant-time verification to prevent timing side-channel attacks
         if agent is None or not secrets.compare_digest(agent.api_token_hash, token_hash):
-            await websocket.send_json(
-                AuthResult(success=False, message="Invalid agent token").model_dump(mode="json")
-            )
+            await websocket.send_json(AuthResult(success=False, message="Invalid agent token").model_dump(mode="json"))
             return None
 
         agent.is_connected = True
@@ -123,9 +121,7 @@ async def agent_websocket(websocket: WebSocket) -> None:
                     result = await handle_action(agent_id, action_msg)
                     await websocket.send_json(result.model_dump(mode="json"))
                 except ValueError as e:
-                    await websocket.send_json(
-                        ErrorMessage(code="ACTION_ERROR", message=str(e)).model_dump(mode="json")
-                    )
+                    await websocket.send_json(ErrorMessage(code="ACTION_ERROR", message=str(e)).model_dump(mode="json"))
                 except Exception:
                     logger.exception("Error handling action for agent %s", agent_id)
                     await websocket.send_json(
@@ -139,9 +135,7 @@ async def agent_websocket(websocket: WebSocket) -> None:
                     result = await handle_query(agent_id, query_msg)
                     await websocket.send_json(result.model_dump(mode="json"))
                 except ValueError as e:
-                    await websocket.send_json(
-                        ErrorMessage(code="QUERY_ERROR", message=str(e)).model_dump(mode="json")
-                    )
+                    await websocket.send_json(ErrorMessage(code="QUERY_ERROR", message=str(e)).model_dump(mode="json"))
                 except Exception:
                     logger.exception("Error handling query for agent %s", agent_id)
                     await websocket.send_json(

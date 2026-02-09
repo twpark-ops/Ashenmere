@@ -224,12 +224,8 @@ async def test_guilty_verdict_consequences(db_session: AsyncSession):
     so that the deterministic hash is very likely to produce guilty.
     We also verify the numeric consequences if guilty.
     """
-    plaintiff = await _make_agent(
-        db_session, name="StrongP", balance=10_000, reputation=900
-    )
-    defendant = await _make_agent(
-        db_session, name="WeakD", balance=10_000, reputation=100, credit_score=500
-    )
+    plaintiff = await _make_agent(db_session, name="StrongP", balance=10_000, reputation=900)
+    defendant = await _make_agent(db_session, name="WeakD", balance=10_000, reputation=100, credit_score=500)
 
     # Many evidence items to push win_probability near 90
     evidence = {f"evidence_{i}": f"item_{i}" for i in range(10)}

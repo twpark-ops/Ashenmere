@@ -165,9 +165,7 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         message="Missing target_id or description",
                     )
                 case_type = CaseType(case_type_str)
-                case = await file_lawsuit(
-                    session, agent_id, UUID(target_id), case_type, description, evidence, tick
-                )
+                case = await file_lawsuit(session, agent_id, UUID(target_id), case_type, description, evidence, tick)
                 await session.commit()
                 result_data = {"case_id": str(case.id)}
 
@@ -232,9 +230,7 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         action=msg.action,
                         message=f"Salary must be 1-{MAX_SALARY} cents",
                     )
-                contract = await hire_agent(
-                    session, agent_id, UUID(employee_id), UUID(business_id), salary, tick
-                )
+                contract = await hire_agent(session, agent_id, UUID(employee_id), UUID(business_id), salary, tick)
                 await session.commit()
                 result_data = {"contract_id": str(contract.id)}
 
@@ -333,9 +329,7 @@ async def handle_action(agent_id: UUID, msg: ActionMessage) -> ActionResult:
                         action=msg.action,
                         message=f"Investment exceeds limit ({MAX_INVESTMENT} cents)",
                     )
-                biz = await invest_in_business(
-                    session, agent_id, UUID(business_id), amount, tick
-                )
+                biz = await invest_in_business(session, agent_id, UUID(business_id), amount, tick)
                 await session.commit()
                 result_data = {"business_id": str(biz.id), "new_capital": biz.capital}
 

@@ -44,9 +44,7 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     api_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
     # Classification
-    tier: Mapped[AgentTier] = mapped_column(
-        SAEnum(AgentTier), default=AgentTier.PLAYER, nullable=False
-    )
+    tier: Mapped[AgentTier] = mapped_column(SAEnum(AgentTier), default=AgentTier.PLAYER, nullable=False)
     status: Mapped[AgentStatus] = mapped_column(
         SAEnum(AgentStatus), default=AgentStatus.ACTIVE, nullable=False, index=True
     )

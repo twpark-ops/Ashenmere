@@ -53,7 +53,9 @@ async def start_business(
 
     # Check business ownership limit
     existing_count = await session.scalar(
-        select(func.count()).select_from(Business).where(
+        select(func.count())
+        .select_from(Business)
+        .where(
             Business.owner_id == agent_id,
             Business.is_active == True,  # noqa: E712
         )
@@ -204,7 +206,10 @@ async def hire_agent(
 
     logger.info(
         "Agent %s hired %s at business %s, salary=%d/day",
-        employer_id, employee_id, business.name, salary,
+        employer_id,
+        employee_id,
+        business.name,
+        salary,
     )
     return contract
 

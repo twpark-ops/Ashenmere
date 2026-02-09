@@ -94,6 +94,7 @@ class TestServerConnectionErrors:
         conn = ServerConnection(config)
         with pytest.raises(ConnectionError, match="Not connected"):
             from agentburg_shared.protocol.messages import ActionType
+
             await conn.send_action(ActionType.IDLE)
 
     @pytest.mark.asyncio
@@ -102,6 +103,7 @@ class TestServerConnectionErrors:
         conn = ServerConnection(config)
         with pytest.raises(ConnectionError, match="Not connected"):
             from agentburg_shared.protocol.messages import QueryType
+
             await conn.send_query(QueryType.MY_BALANCE)
 
     @pytest.mark.asyncio

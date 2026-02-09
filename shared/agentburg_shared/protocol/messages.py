@@ -212,14 +212,7 @@ class AuthResult(BaseModel):
 
 # Union type for message routing
 ServerMessage = (
-    TickUpdate
-    | ObservationMessage
-    | ActionResult
-    | WorldEvent
-    | SleepSummary
-    | QueryResult
-    | ErrorMessage
-    | AuthResult
+    TickUpdate | ObservationMessage | ActionResult | WorldEvent | SleepSummary | QueryResult | ErrorMessage | AuthResult
 )
 
 ClientMessage = AuthenticateMessage | ActionMessage | QueryMessage

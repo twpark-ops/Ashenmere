@@ -142,9 +142,7 @@ async def create_agent_endpoint(
 ) -> dict:
     """Create a new agent for the authenticated user."""
     try:
-        agent, raw_token = await create_agent(
-            session, user, body.name, body.title, body.bio
-        )
+        agent, raw_token = await create_agent(session, user, body.name, body.title, body.bio)
         await session.commit()
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
@@ -195,9 +193,7 @@ async def world_status(
 ) -> dict:
     """Get current world status."""
     total = await session.scalar(select(func.count()).select_from(Agent))
-    active = await session.scalar(
-        select(func.count()).select_from(Agent).where(Agent.status == AgentStatus.ACTIVE)
-    )
+    active = await session.scalar(select(func.count()).select_from(Agent).where(Agent.status == AgentStatus.ACTIVE))
     trades = await session.scalar(select(func.count()).select_from(Trade))
 
     return {

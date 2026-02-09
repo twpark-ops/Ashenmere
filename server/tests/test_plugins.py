@@ -295,9 +295,7 @@ async def test_before_action_passthrough():
     plugin = ActionLoggerPlugin()
     mgr.register(plugin)
 
-    result = await mgr.dispatch_before_action(
-        agent_id=uuid4(), action="BUY", params={"item": "wood", "price": 100}
-    )
+    result = await mgr.dispatch_before_action(agent_id=uuid4(), action="BUY", params={"item": "wood", "price": 100})
 
     assert result is None
     assert len(plugin.actions) == 1
@@ -310,9 +308,7 @@ async def test_before_action_param_override():
     plugin = ParamOverridePlugin()
     mgr.register(plugin)
 
-    result = await mgr.dispatch_before_action(
-        agent_id=uuid4(), action="BUY", params={"item": "wood", "price": 100}
-    )
+    result = await mgr.dispatch_before_action(agent_id=uuid4(), action="BUY", params={"item": "wood", "price": 100})
 
     assert result is not None
     assert result["price"] == 200  # Doubled by plugin
@@ -325,9 +321,7 @@ async def test_before_action_block():
     mgr.register(ActionBlockerPlugin(blocked_action="CHAT"))
 
     with pytest.raises(ValueError, match="blocked by plugin"):
-        await mgr.dispatch_before_action(
-            agent_id=uuid4(), action="CHAT", params={"message": "hello"}
-        )
+        await mgr.dispatch_before_action(agent_id=uuid4(), action="CHAT", params={"message": "hello"})
 
 
 @pytest.mark.anyio
@@ -340,9 +334,7 @@ async def test_before_action_block_priority():
     mgr.register(logger_p)
 
     with pytest.raises(ValueError, match="blocked by plugin"):
-        await mgr.dispatch_before_action(
-            agent_id=uuid4(), action="CHAT", params={"message": "hello"}
-        )
+        await mgr.dispatch_before_action(agent_id=uuid4(), action="CHAT", params={"message": "hello"})
 
     # Logger should not have been called because blocker raised first
     assert len(logger_p.actions) == 0
@@ -544,11 +536,16 @@ def test_plugin_metadata_frozen():
 def test_hook_type_values():
     """HookType should have all expected values."""
     expected = {
-        "on_startup", "on_shutdown",
-        "before_tick", "after_tick",
-        "before_action", "after_action",
-        "on_agent_connect", "on_agent_disconnect",
-        "on_trade", "on_verdict",
+        "on_startup",
+        "on_shutdown",
+        "before_tick",
+        "after_tick",
+        "before_action",
+        "after_action",
+        "on_agent_connect",
+        "on_agent_disconnect",
+        "on_trade",
+        "on_verdict",
     }
     actual = {h.value for h in HookType}
     assert actual == expected

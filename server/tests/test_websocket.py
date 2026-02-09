@@ -47,9 +47,7 @@ class _ASGIWebSocket:
             "headers": [],
             "subprotocols": [],
         }
-        self._task = asyncio.create_task(
-            self._app(scope, self._send_queue.get, self._receive_queue.put)
-        )
+        self._task = asyncio.create_task(self._app(scope, self._send_queue.get, self._receive_queue.put))
 
         # Wait for the accept message
         msg = await self._receive_queue.get()
@@ -69,13 +67,17 @@ class _ASGIWebSocket:
 
     async def send_json(self, data: dict) -> None:
         import json
-        await self._send_queue.put({
-            "type": "websocket.receive",
-            "text": json.dumps(data),
-        })
+
+        await self._send_queue.put(
+            {
+                "type": "websocket.receive",
+                "text": json.dumps(data),
+            }
+        )
 
     async def receive_json(self, timeout: float = 5.0) -> dict:
         import json
+
         msg = await asyncio.wait_for(self._receive_queue.get(), timeout=timeout)
         if msg["type"] == "websocket.send":
             return json.loads(msg["text"])
@@ -144,10 +146,12 @@ async def test_ws_auth_success(ws_setup):
     agent, raw_token = await _make_agent_with_token(factory)
 
     async with _ASGIWebSocket(app) as ws:
-        await ws.send_json({
-            "type": "authenticate",
-            "agent_token": raw_token,
-        })
+        await ws.send_json(
+            {
+                "type": "authenticate",
+                "agent_token": raw_token,
+            }
+        )
         response = await ws.receive_json()
 
         assert response["success"] is True
@@ -161,10 +165,12 @@ async def test_ws_auth_invalid_token(ws_setup):
     app, factory = ws_setup
 
     async with _ASGIWebSocket(app) as ws:
-        await ws.send_json({
-            "type": "authenticate",
-            "agent_token": "invalid_token_12345",
-        })
+        await ws.send_json(
+            {
+                "type": "authenticate",
+                "agent_token": "invalid_token_12345",
+            }
+        )
         response = await ws.receive_json()
 
         assert response["success"] is False
@@ -177,11 +183,13 @@ async def test_ws_auth_required_first(ws_setup):
     app, factory = ws_setup
 
     async with _ASGIWebSocket(app) as ws:
-        await ws.send_json({
-            "type": "action",
-            "action": "idle",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "idle",
+                "params": {},
+            }
+        )
         response = await ws.receive_json()
         assert response.get("code") == "AUTH_REQUIRED"
 
@@ -204,11 +212,13 @@ async def test_ws_query_balance(ws_setup):
         assert auth_resp["success"] is True
 
         # Send query
-        await ws.send_json({
-            "type": "query",
-            "query": "my_balance",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "my_balance",
+                "params": {},
+            }
+        )
         query_resp = await ws.receive_json()
 
         assert query_resp.get("type") == "query_result"
@@ -228,11 +238,13 @@ async def test_ws_action_idle(ws_setup):
         assert auth_resp["success"] is True
 
         # Send idle action
-        await ws.send_json({
-            "type": "action",
-            "action": "idle",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "idle",
+                "params": {},
+            }
+        )
         action_resp = await ws.receive_json()
 
         assert action_resp.get("type") == "action_result"
@@ -272,11 +284,13 @@ async def test_ws_action_buy(ws_setup):
         auth_resp = await ws.receive_json()
         assert auth_resp["success"] is True
 
-        await ws.send_json({
-            "type": "action",
-            "action": "buy",
-            "params": {"item": "wheat", "price": 100, "quantity": 5},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "buy",
+                "params": {"item": "wheat", "price": 100, "quantity": 5},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -295,11 +309,13 @@ async def test_ws_action_sell(ws_setup):
         auth_resp = await ws.receive_json()
         assert auth_resp["success"] is True
 
-        await ws.send_json({
-            "type": "action",
-            "action": "sell",
-            "params": {"item": "wheat", "price": 150, "quantity": 10},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "sell",
+                "params": {"item": "wheat", "price": 150, "quantity": 10},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -317,11 +333,13 @@ async def test_ws_action_buy_missing_params(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "action",
-            "action": "buy",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "buy",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -339,11 +357,13 @@ async def test_ws_action_chat(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "action",
-            "action": "chat",
-            "params": {"message": "Hello world!"},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "chat",
+                "params": {"message": "Hello world!"},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -361,11 +381,13 @@ async def test_ws_action_chat_empty(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "action",
-            "action": "chat",
-            "params": {"message": ""},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "chat",
+                "params": {"message": ""},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -382,15 +404,17 @@ async def test_ws_action_start_business(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "action",
-            "action": "start_business",
-            "params": {
-                "name": "Test Shop",
-                "business_type": "shop",
-                "location": "downtown",
-            },
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "start_business",
+                "params": {
+                    "name": "Test Shop",
+                    "business_type": "shop",
+                    "location": "downtown",
+                },
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -408,15 +432,17 @@ async def test_ws_action_build(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "action",
-            "action": "build",
-            "params": {
-                "name": "Test Building",
-                "property_type": "building",
-                "location": "uptown",
-            },
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "build",
+                "params": {
+                    "name": "Test Building",
+                    "property_type": "building",
+                    "location": "uptown",
+                },
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "action_result"
@@ -440,11 +466,13 @@ async def test_ws_query_inventory(ws_setup):
         auth_resp = await ws.receive_json()
         assert auth_resp["success"] is True
 
-        await ws.send_json({
-            "type": "query",
-            "query": "my_inventory",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "my_inventory",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -464,11 +492,13 @@ async def test_ws_query_world_status(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "world_status",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "world_status",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -489,11 +519,13 @@ async def test_ws_query_market_prices(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "market_prices",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "market_prices",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -511,11 +543,13 @@ async def test_ws_query_bank_rates(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "bank_rates",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "bank_rates",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -535,11 +569,13 @@ async def test_ws_query_business_list(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "business_list",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "business_list",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -558,19 +594,23 @@ async def test_ws_query_market_orders(ws_setup):
         await ws.receive_json()
 
         # Place an order first to have something to query
-        await ws.send_json({
-            "type": "action",
-            "action": "buy",
-            "params": {"item": "wheat", "price": 100, "quantity": 5},
-        })
+        await ws.send_json(
+            {
+                "type": "action",
+                "action": "buy",
+                "params": {"item": "wheat", "price": 100, "quantity": 5},
+            }
+        )
         await ws.receive_json()
 
         # Query open orders
-        await ws.send_json({
-            "type": "query",
-            "query": "market_orders",
-            "params": {"item": "wheat"},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "market_orders",
+                "params": {"item": "wheat"},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -590,11 +630,13 @@ async def test_ws_query_balance_data(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "my_balance",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "my_balance",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -612,11 +654,13 @@ async def test_ws_query_court_cases(ws_setup):
         await ws.send_json({"type": "authenticate", "agent_token": raw_token})
         await ws.receive_json()
 
-        await ws.send_json({
-            "type": "query",
-            "query": "court_cases",
-            "params": {},
-        })
+        await ws.send_json(
+            {
+                "type": "query",
+                "query": "court_cases",
+                "params": {},
+            }
+        )
         resp = await ws.receive_json()
 
         assert resp.get("type") == "query_result"
@@ -650,12 +694,14 @@ async def test_ws_dashboard_broadcast(ws_setup):
         # Import and call broadcast_to_dashboard directly
         from agentburg_server.api.ws import broadcast_to_dashboard
 
-        await broadcast_to_dashboard({
-            "type": "tick_update",
-            "tick": 99,
-            "world_time": "2026-01-01 12:00:00",
-            "stats": {"trades": 5, "verdicts": 0, "payments": 2, "interest_processed": 0},
-        })
+        await broadcast_to_dashboard(
+            {
+                "type": "tick_update",
+                "tick": 99,
+                "world_time": "2026-01-01 12:00:00",
+                "stats": {"trades": 5, "verdicts": 0, "payments": 2, "interest_processed": 0},
+            }
+        )
 
         resp = await ws.receive_json(timeout=3.0)
         assert resp["type"] == "tick_update"

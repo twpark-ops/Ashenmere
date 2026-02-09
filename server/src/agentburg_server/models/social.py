@@ -37,17 +37,11 @@ class CourtCase(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "court_cases"
 
     case_type: Mapped[CaseType] = mapped_column(SAEnum(CaseType), nullable=False)
-    plaintiff_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False
-    )
-    defendant_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False
-    )
+    plaintiff_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
+    defendant_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     evidence: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
-    status: Mapped[CaseStatus] = mapped_column(
-        SAEnum(CaseStatus), default=CaseStatus.FILED, nullable=False
-    )
+    status: Mapped[CaseStatus] = mapped_column(SAEnum(CaseStatus), default=CaseStatus.FILED, nullable=False)
     verdict_details: Mapped[str | None] = mapped_column(Text)
     fine_amount: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tick_filed: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -77,12 +71,8 @@ class Contract(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "contracts"
 
     contract_type: Mapped[ContractType] = mapped_column(SAEnum(ContractType), nullable=False)
-    party_a_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False
-    )
-    party_b_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False
-    )
+    party_a_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
+    party_b_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
     terms: Mapped[dict] = mapped_column(JSONB, nullable=False)
     status: Mapped[ContractStatus] = mapped_column(
         SAEnum(ContractStatus), default=ContractStatus.PROPOSED, nullable=False
@@ -111,9 +101,7 @@ class Business(Base, UUIDMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     business_type: Mapped[BusinessType] = mapped_column(SAEnum(BusinessType), nullable=False)
-    owner_id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True
-    )
+    owner_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True)
     owner: Mapped["Agent"] = relationship(back_populates="businesses")  # noqa: F821
     location: Mapped[str] = mapped_column(String(100), nullable=False)
     capital: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

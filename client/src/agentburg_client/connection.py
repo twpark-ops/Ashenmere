@@ -103,7 +103,8 @@ class ServerConnection:
             if max_attempts > 0 and attempt > max_attempts:
                 logger.error(
                     "Failed to connect after %d attempts (max: %d)",
-                    attempt - 1, max_attempts,
+                    attempt - 1,
+                    max_attempts,
                 )
                 return False
 
@@ -136,7 +137,8 @@ class ServerConnection:
                     self._reconnect_count = 0
                     logger.info(
                         "Authenticated as agent %s: %s",
-                        self.agent_id, result.get("message"),
+                        self.agent_id,
+                        result.get("message"),
                     )
                     # Start heartbeat
                     self._start_heartbeat()
@@ -151,7 +153,8 @@ class ServerConnection:
             except TimeoutError:
                 logger.warning(
                     "Connection attempt %d timed out during %s",
-                    attempt, self._state.value,
+                    attempt,
+                    self._state.value,
                 )
                 await self._close_ws()
 
@@ -170,9 +173,7 @@ class ServerConnection:
 
             # Wait for either the backoff delay or a shutdown signal
             try:
-                await asyncio.wait_for(
-                    self._shutdown_event.wait(), timeout=delay
-                )
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=delay)
                 # shutdown_event was set during backoff
                 logger.info("Shutdown requested during reconnect backoff")
                 self._state = ConnectionState.SHUTTING_DOWN
@@ -220,9 +221,7 @@ class ServerConnection:
     ) -> None:
         """Send an action to the server."""
         if not self._ws or self._state != ConnectionState.CONNECTED:
-            raise ConnectionError(
-                f"Not connected (state={self._state.value})"
-            )
+            raise ConnectionError(f"Not connected (state={self._state.value})")
 
         msg = ActionMessage(action=action, params=params or {}, request_id=request_id)
         await self._ws.send(msg.model_dump_json())
@@ -235,9 +234,7 @@ class ServerConnection:
     ) -> None:
         """Send a query to the server."""
         if not self._ws or self._state != ConnectionState.CONNECTED:
-            raise ConnectionError(
-                f"Not connected (state={self._state.value})"
-            )
+            raise ConnectionError(f"Not connected (state={self._state.value})")
 
         msg = QueryMessage(query=query, params=params or {}, request_id=request_id)
         await self._ws.send(msg.model_dump_json())
@@ -272,7 +269,8 @@ class ServerConnection:
             if self._state != ConnectionState.SHUTTING_DOWN:
                 logger.warning(
                     "Connection closed by server (code=%s, reason=%s)",
-                    e.code, e.reason,
+                    e.code,
+                    e.reason,
                 )
                 self._state = ConnectionState.DISCONNECTED
         except Exception as e:

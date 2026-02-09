@@ -124,9 +124,7 @@ def test_compute_importance_knowledge():
 def test_importance_clamped():
     """Importance should be clamped to [0.0, 1.0]."""
     # Many high-importance keywords
-    score = compute_importance(
-        "failed error bankrupt loss profit lawsuit warning critical opportunity deal"
-    )
+    score = compute_importance("failed error bankrupt loss profit lawsuit warning critical opportunity deal")
     assert score <= 1.0
     assert score >= 0.0
 

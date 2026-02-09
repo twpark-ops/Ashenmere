@@ -65,12 +65,9 @@ async def file_lawsuit(
 
 async def process_pending_cases(session: AsyncSession, tick: int) -> list[CourtCase]:
     """Process cases that have been filed for enough time (3 ticks minimum deliberation)."""
-    stmt = (
-        select(CourtCase)
-        .where(
-            CourtCase.status == CaseStatus.FILED,
-            CourtCase.tick_filed <= tick - 3,  # 3 tick deliberation period
-        )
+    stmt = select(CourtCase).where(
+        CourtCase.status == CaseStatus.FILED,
+        CourtCase.tick_filed <= tick - 3,  # 3 tick deliberation period
     )
     result = await session.execute(stmt)
     cases = list(result.scalars().all())

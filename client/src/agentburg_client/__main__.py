@@ -92,7 +92,8 @@ async def run_agent(config: AgentConfig) -> None:
 
     logger.info(
         "Starting agent '%s' (%s)",
-        config.personality.name, config.personality.title,
+        config.personality.name,
+        config.personality.title,
     )
 
     # Initialize memory persistence
@@ -141,8 +142,7 @@ async def run_agent(config: AgentConfig) -> None:
         # Log final token usage stats
         usage = brain.token_usage
         logger.info(
-            "Session stats — decisions: %d, failures: %d, "
-            "tokens (in: %d, out: %d)",
+            "Session stats — decisions: %d, failures: %d, tokens (in: %d, out: %d)",
             usage.total_decisions,
             usage.total_failures,
             usage.total_input_tokens,
@@ -197,7 +197,9 @@ async def _agent_loop(
 
             logger.info(
                 "Tick %d | Action: %s | %s",
-                tick, action, reasoning[:80],
+                tick,
+                action,
+                reasoning[:80],
             )
 
             # Send the action
@@ -224,7 +226,9 @@ async def _agent_loop(
             logger.log(
                 level,
                 "Action result [%s]: %s — %s",
-                action, "OK" if success else "FAIL", message,
+                action,
+                "OK" if success else "FAIL",
+                message,
             )
             brain.process_observation(
                 f"Action {action}: {'succeeded' if success else 'failed'} — {message}",
@@ -236,7 +240,8 @@ async def _agent_loop(
             data = msg.get("data", {})
             logger.info(
                 "Query result [%s]: %d data keys",
-                query, len(data),
+                query,
+                len(data),
             )
             # Store query results as knowledge for future decisions
             summary_parts = []
@@ -271,7 +276,8 @@ async def _agent_loop(
             events = msg.get("events", [])
             logger.info(
                 "Sleep summary: missed %d ticks, balance change: %d",
-                ticks_missed, balance_change,
+                ticks_missed,
+                balance_change,
             )
             for event in events[:5]:
                 brain.memory.store(
@@ -283,7 +289,8 @@ async def _agent_loop(
         elif msg_type == MessageType.ERROR:
             logger.error(
                 "Server error [%s]: %s",
-                msg.get("code"), msg.get("message"),
+                msg.get("code"),
+                msg.get("message"),
             )
 
         else:
@@ -297,7 +304,8 @@ def main() -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--config", default="config.yaml",
+        "--config",
+        default="config.yaml",
         help="Path to agent config YAML",
     )
     parser.add_argument(
@@ -344,7 +352,9 @@ def main() -> None:
             crash_count += 1
             logger.exception(
                 "AGENT CRASHED (crash #%d/%d). Restarting in %.0fs...",
-                crash_count, MAX_CRASH_RESTARTS, CRASH_RESTART_DELAY,
+                crash_count,
+                MAX_CRASH_RESTARTS,
+                CRASH_RESTART_DELAY,
             )
             if crash_count >= MAX_CRASH_RESTARTS:
                 logger.error(

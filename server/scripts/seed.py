@@ -20,9 +20,21 @@ DATABASE_URL = "postgresql+asyncpg://agentburg:agentburg@localhost:5432/agentbur
 
 # Initial market items
 ITEMS = [
-    "wheat", "bread", "wood", "stone", "iron",
-    "gold", "fish", "wool", "cloth", "tools",
-    "leather", "meat", "ale", "medicine", "spices",
+    "wheat",
+    "bread",
+    "wood",
+    "stone",
+    "iron",
+    "gold",
+    "fish",
+    "wool",
+    "cloth",
+    "tools",
+    "leather",
+    "meat",
+    "ale",
+    "medicine",
+    "spices",
 ]
 
 # NPC agent configs (Tier 3 rule-based)
@@ -46,10 +58,10 @@ async def seed_database() -> None:
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Import models after engine is created
+    from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
     from agentburg_server.models.base import Base
-    from agentburg_server.models.user import User
-    from agentburg_server.models.agent import Agent, AgentTier, AgentStatus
     from agentburg_server.models.economy import Property, PropertyType
+    from agentburg_server.models.user import User
 
     async with engine.begin() as conn:
         # Create all tables (idempotent if they already exist)
@@ -86,15 +98,19 @@ async def seed_database() -> None:
                 status=AgentStatus.ACTIVE,
                 balance=50000,  # NPCs start with more money
                 inventory={
-                    "wheat": 20, "bread": 10, "wood": 15, "stone": 10,
-                    "iron": 5, "fish": 10, "tools": 3,
+                    "wheat": 20,
+                    "bread": 10,
+                    "wood": 15,
+                    "stone": 10,
+                    "iron": 5,
+                    "fish": 10,
+                    "tools": 3,
                 },
             )
             session.add(agent)
             logger.info("Created NPC: %s (%s)", npc["name"], npc["title"])
 
         # 3. Create initial properties
-        locations = ["town_center", "harbor", "market_square", "hillside", "farmland"]
         properties_data = [
             ("Town Hall", PropertyType.BUILDING, "town_center", 100000),
             ("Harbor Warehouse", PropertyType.BUILDING, "harbor", 50000),

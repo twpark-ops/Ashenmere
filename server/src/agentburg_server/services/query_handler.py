@@ -149,9 +149,7 @@ async def handle_query(agent_id: UUID, msg: QueryMessage) -> QueryResult:
             elif msg.query == QueryType.WORLD_STATUS:
                 total = await session.scalar(select(func.count()).select_from(Agent))
                 active = await session.scalar(
-                    select(func.count())
-                    .select_from(Agent)
-                    .where(Agent.status == AgentStatus.ACTIVE)
+                    select(func.count()).select_from(Agent).where(Agent.status == AgentStatus.ACTIVE)
                 )
                 trades = await session.scalar(select(func.count()).select_from(Trade))
                 data = {

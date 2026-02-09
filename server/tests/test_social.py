@@ -62,7 +62,9 @@ async def test_create_trade_offer_basic(db_session: AsyncSession):
     target = await _make_agent(db_session, name="Target", inventory={"bread": 5})
 
     contract = await create_trade_offer(
-        db_session, offerer.id, target.id,
+        db_session,
+        offerer.id,
+        target.id,
         offer_items={"wheat": 5},
         request_items={"bread": 2},
         tick=1,
@@ -83,8 +85,12 @@ async def test_create_trade_offer_self(db_session: AsyncSession):
 
     with pytest.raises(ValueError, match="Cannot trade with yourself"):
         await create_trade_offer(
-            db_session, agent.id, agent.id,
-            offer_items={"wheat": 1}, request_items={}, tick=1,
+            db_session,
+            agent.id,
+            agent.id,
+            offer_items={"wheat": 1},
+            request_items={},
+            tick=1,
         )
 
 
@@ -96,8 +102,12 @@ async def test_create_trade_offer_insufficient_inventory(db_session: AsyncSessio
 
     with pytest.raises(ValueError, match="Insufficient wheat"):
         await create_trade_offer(
-            db_session, offerer.id, target.id,
-            offer_items={"wheat": 10}, request_items={}, tick=1,
+            db_session,
+            offerer.id,
+            target.id,
+            offer_items={"wheat": 10},
+            request_items={},
+            tick=1,
         )
 
 
@@ -109,8 +119,12 @@ async def test_create_trade_offer_invalid_quantity(db_session: AsyncSession):
 
     with pytest.raises(ValueError, match="Invalid quantity"):
         await create_trade_offer(
-            db_session, offerer.id, target.id,
-            offer_items={"wheat": 0}, request_items={}, tick=1,
+            db_session,
+            offerer.id,
+            target.id,
+            offer_items={"wheat": 0},
+            request_items={},
+            tick=1,
         )
 
 
@@ -126,8 +140,12 @@ async def test_accept_trade_offer_basic(db_session: AsyncSession):
     accepter = await _make_agent(db_session, name="Buyer", inventory={"bread": 5})
 
     contract = await create_trade_offer(
-        db_session, offerer.id, accepter.id,
-        offer_items={"wheat": 3}, request_items={"bread": 2}, tick=1,
+        db_session,
+        offerer.id,
+        accepter.id,
+        offer_items={"wheat": 3},
+        request_items={"bread": 2},
+        tick=1,
     )
     await db_session.flush()
 
@@ -149,8 +167,12 @@ async def test_accept_trade_offer_not_for_you(db_session: AsyncSession):
     intruder = await _make_agent(db_session, name="A3")
 
     contract = await create_trade_offer(
-        db_session, offerer.id, target.id,
-        offer_items={"wheat": 1}, request_items={}, tick=1,
+        db_session,
+        offerer.id,
+        target.id,
+        offer_items={"wheat": 1},
+        request_items={},
+        tick=1,
     )
     await db_session.flush()
 
@@ -165,8 +187,12 @@ async def test_accept_trade_offer_insufficient_items(db_session: AsyncSession):
     accepter = await _make_agent(db_session, name="Poor", inventory={})
 
     contract = await create_trade_offer(
-        db_session, offerer.id, accepter.id,
-        offer_items={"wheat": 1}, request_items={"bread": 5}, tick=1,
+        db_session,
+        offerer.id,
+        accepter.id,
+        offer_items={"wheat": 1},
+        request_items={"bread": 5},
+        tick=1,
     )
     await db_session.flush()
 
@@ -186,8 +212,12 @@ async def test_reject_trade_offer_basic(db_session: AsyncSession):
     target = await _make_agent(db_session, name="Rej2")
 
     contract = await create_trade_offer(
-        db_session, offerer.id, target.id,
-        offer_items={"wheat": 1}, request_items={}, tick=1,
+        db_session,
+        offerer.id,
+        target.id,
+        offer_items={"wheat": 1},
+        request_items={},
+        tick=1,
     )
     await db_session.flush()
 
@@ -206,8 +236,12 @@ async def test_reject_trade_offer_not_for_you(db_session: AsyncSession):
     intruder = await _make_agent(db_session, name="R3")
 
     contract = await create_trade_offer(
-        db_session, offerer.id, target.id,
-        offer_items={"wheat": 1}, request_items={}, tick=1,
+        db_session,
+        offerer.id,
+        target.id,
+        offer_items={"wheat": 1},
+        request_items={},
+        tick=1,
     )
     await db_session.flush()
 
@@ -312,6 +346,7 @@ async def test_invest_closed_business(db_session: AsyncSession):
     biz = await start_business(db_session, owner.id, "ClosedCo", "shop", "", tick=0)
     await db_session.flush()
     from agentburg_server.services.business import close_business as close_biz
+
     await close_biz(db_session, owner.id, biz.id, tick=5)
     await db_session.flush()
 

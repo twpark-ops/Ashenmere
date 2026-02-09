@@ -191,8 +191,11 @@ class TestDecide:
             tick_data = {
                 "tick": 42,
                 "agent": {
-                    "balance": 10000, "inventory": {}, "location": "market",
-                    "reputation": 500, "credit_score": 600,
+                    "balance": 10000,
+                    "inventory": {},
+                    "location": "market",
+                    "reputation": 500,
+                    "credit_score": 600,
                 },
                 "market": {"prices": {"wheat": 50}},
                 "observations": [],
@@ -212,6 +215,7 @@ class TestDecide:
 
         async def slow_llm(*args, **kwargs):
             import asyncio
+
             await asyncio.sleep(10)  # Will be cancelled by timeout
 
         with patch("litellm.acompletion", side_effect=slow_llm):
@@ -234,12 +238,14 @@ class TestDecide:
         brain = AgentBrain(default_config)
 
         with patch("litellm.acompletion", side_effect=RuntimeError("API error")):
-            decision = await brain.decide({
-                "tick": 1,
-                "agent": {"balance": 0},
-                "market": {},
-                "observations": [],
-            })
+            decision = await brain.decide(
+                {
+                    "tick": 1,
+                    "agent": {"balance": 0},
+                    "market": {},
+                    "observations": [],
+                }
+            )
 
         assert decision["action"] == ActionType.IDLE
         assert brain.token_usage.total_failures >= 1

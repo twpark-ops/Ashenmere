@@ -33,10 +33,12 @@ class TestComputeImportance:
 
     def test_score_clamped_to_0_1(self):
         # Even with many high keywords, score should not exceed 1.0
-        text = " ".join([
-            "failed error bankrupt profit loss lawsuit sued critical "
-            "warning opportunity deal rich poor reputation credit loan debt"
-        ])
+        text = " ".join(
+            [
+                "failed error bankrupt profit loss lawsuit sued critical "
+                "warning opportunity deal rich poor reputation credit loan debt"
+            ]
+        )
         score = compute_importance(text)
         assert 0.0 <= score <= 1.0
 

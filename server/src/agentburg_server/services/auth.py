@@ -59,9 +59,7 @@ async def register_user(
     password: str,
 ) -> User:
     """Register a new user account."""
-    existing = await session.execute(
-        select(User).where((User.email == email) | (User.username == username))
-    )
+    existing = await session.execute(select(User).where((User.email == email) | (User.username == username)))
     if existing.scalar_one_or_none():
         raise ValueError("Email or username already taken")
 

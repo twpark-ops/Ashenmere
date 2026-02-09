@@ -55,9 +55,7 @@ async def _create_agents(session: AsyncSession, count: int) -> list[Agent]:
 @pytest.fixture(autouse=True)
 def _override_db(db_engine):
     """Override the global session factory for action/query handlers."""
-    factory = async_sessionmaker(
-        db_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     original = _db.get_session_factory
 
     def _override():

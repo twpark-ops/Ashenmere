@@ -57,8 +57,7 @@ class PluginManager:
                 # Re-sort by priority after insertion
                 self._hooks[hook_type].sort(key=lambda p: p.metadata.priority)
 
-        logger.info("Plugin registered: %s v%s (priority=%d)",
-                     name, plugin.metadata.version, plugin.metadata.priority)
+        logger.info("Plugin registered: %s v%s (priority=%d)", name, plugin.metadata.version, plugin.metadata.priority)
 
     def unregister(self, name: str) -> None:
         """Unregister a plugin by name."""
@@ -102,9 +101,7 @@ class PluginManager:
             try:
                 await method(**kwargs)
             except Exception:
-                logger.exception(
-                    "Plugin %s failed on hook %s", plugin.name, hook_type.value
-                )
+                logger.exception("Plugin %s failed on hook %s", plugin.name, hook_type.value)
 
     async def dispatch_before_action(self, **kwargs: Any) -> dict[str, Any] | None:
         """Dispatch before_action hooks, allowing param override.
@@ -122,9 +119,7 @@ class PluginManager:
             except ValueError:
                 raise  # Let ValueError propagate to block the action
             except Exception:
-                logger.exception(
-                    "Plugin %s failed on before_action", plugin.name
-                )
+                logger.exception("Plugin %s failed on before_action", plugin.name)
 
         return overridden_params
 
