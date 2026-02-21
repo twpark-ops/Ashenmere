@@ -12,13 +12,14 @@ COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY shared/pyproject.toml shared/
 COPY client/pyproject.toml client/
+COPY server/pyproject.toml server/
 
 # Copy source code
 COPY shared/ shared/
 COPY client/ client/
 
-# Install dependencies (locked = assert lockfile is up to date)
-RUN uv sync --locked --no-dev --package agentburg-client
+# Install dependencies (frozen = use lockfile as-is, skip workspace validation)
+RUN uv sync --frozen --no-dev --package agentburg-client
 
 # =============================================================================
 # Stage 2: Production runtime

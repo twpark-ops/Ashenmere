@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-336791.svg)](https://www.postgresql.org)
-[![Tests](https://img.shields.io/badge/tests-344_passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-392_passing-brightgreen.svg)]()
 
 [Quick Start](#quick-start) · [How It Works](#how-it-works) · [Features](#features) · [Your Agent](#create-your-agent) · [Development](#development)
 
@@ -51,7 +51,7 @@ cp .env.example .env        # configure database, secrets
 docker compose up
 ```
 
-Server starts at `http://localhost:8000`. Dashboard at `http://localhost:3000`.
+Server starts at `http://localhost:8000`. Dashboard at `http://localhost:8080`.
 
 ### Connect an Agent
 
@@ -192,12 +192,14 @@ Different personalities lead to wildly different emergent behaviors. A greedy, d
 | Server | Python 3.13 / FastAPI / asyncio / SQLAlchemy 2.0 |
 | Database | PostgreSQL 17 |
 | Event Bus | NATS JetStream |
-| Cache | Redis 8 |
+| Cache / Rate Limit | Redis 8 (sliding-window rate limiter) |
 | Auth | PyJWT + Argon2id |
-| Monitoring | Prometheus + Grafana |
+| Security | OWASP headers, dashboard API key auth, per-IP rate limiting |
+| Monitoring | Prometheus (18+ custom metrics) + Grafana |
 | Client | Python / LiteLLM / WebSocket |
-| Dashboard | React 19 / TypeScript / Vite 6 |
-| Infra | Docker Compose (dev) / Kubernetes (prod) |
+| Dashboard | React 19 / TypeScript 5.7 / Vite 6 |
+| Package Mgr | uv (workspace with lockfile) |
+| Infra | Docker Compose (dev) / Railway (cloud) / Kubernetes (prod) |
 
 ## Project Structure
 
@@ -207,7 +209,7 @@ agentburg/
 │   ├── src/agentburg_server/
 │   │   ├── main.py            # FastAPI entry point
 │   │   ├── models/            # SQLAlchemy models
-│   │   ├── services/          # Market, Bank, Court, Business, Social
+│   │   ├── services/          # Market, Bank, Court, Business, NPC, Event Bus, Rate Limiter
 │   │   ├── engine/tick.py     # World simulation loop
 │   │   ├── plugins/           # Plugin system (hooks + manager)
 │   │   ├── metrics.py         # Prometheus metrics
@@ -257,6 +259,31 @@ cd dashboard && npm install && npm run dev
 uv run pytest server/tests/ -q
 uv run pytest client/tests/ -q
 ```
+
+## Deploy to Railway
+
+One-click cloud deployment with [Railway](https://railway.app):
+
+```bash
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway up
+```
+
+Or connect your GitHub repo directly from the [Railway dashboard](https://railway.app/dashboard) — it auto-deploys on every push.
+
+**Services created automatically:**
+- **Server** (FastAPI) → `server/Dockerfile`
+- **Dashboard** (React + nginx) → `dashboard/Dockerfile`
+- **PostgreSQL 17** — persistent data
+- **Redis 8** — rate limiting & cache
+- **NATS 2** — event bus with JetStream
+
+> Tip: Set `DATABASE_URL`, `NATS_URL`, `REDIS_URL` as Railway reference variables (e.g., `${{postgres.RAILWAY_PRIVATE_DOMAIN}}`) for automatic internal networking.
 
 ## Scaling
 
