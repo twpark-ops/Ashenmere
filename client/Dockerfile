@@ -18,8 +18,7 @@ COPY shared/ shared/
 COPY client/ client/
 
 # Install dependencies (locked = assert lockfile is up to date)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --package agentburg-client
+RUN uv sync --locked --no-dev --package agentburg-client
 
 # =============================================================================
 # Stage 2: Production runtime
