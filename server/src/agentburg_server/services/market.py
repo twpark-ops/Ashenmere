@@ -17,7 +17,8 @@ from agentburg_server.models.economy import (
     OrderStatus,
     Trade,
 )
-from agentburg_server.models.event import EventCategory, WorldEventLog
+from agentburg_server.models.event import EventCategory
+from agentburg_server.services.event_logger import log_event as _log_event
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,22 @@ async def run_batch_auction(session: AsyncSession, tick: int) -> list[Trade]:
 
             trades.append(trade)
 
+            # Publish trade event to NATS event bus
+            from agentburg_server.services.event_bus import event_bus
+
+            await event_bus.publish(
+                f"agentburg.trade.{item}",
+                {
+                    "tick": tick,
+                    "item": item,
+                    "price": match_price,
+                    "quantity": match_quantity,
+                    "total": total,
+                    "buyer_id": str(buy.agent_id),
+                    "seller_id": str(sell.agent_id),
+                },
+            )
+
             # Log the trade event
             await _log_event(
                 session,
@@ -342,24 +359,3 @@ async def _expire_orders(session: AsyncSession, tick: int) -> int:
     return len(expired_orders)
 
 
-async def _log_event(
-    session: AsyncSession,
-    tick: int,
-    category: EventCategory,
-    event_type: str,
-    description: str,
-    agent_id: UUID | None = None,
-    target_id: UUID | None = None,
-    data: dict | None = None,
-) -> None:
-    """Helper to create an event log entry."""
-    event = WorldEventLog(
-        tick=tick,
-        category=category,
-        event_type=event_type,
-        agent_id=agent_id,
-        target_id=target_id,
-        description=description,
-        data=data or {},
-    )
-    session.add(event)

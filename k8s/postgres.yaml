@@ -34,7 +34,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: agentburg-secrets
-                  key: admin-password
+                  key: postgres-password
             - name: POSTGRES_DB
               value: agentburg
             - name: PGDATA

@@ -25,6 +25,7 @@ from agentburg_server.plugins.base import HookType
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
 from agentburg_server.services.market import run_batch_auction
+from agentburg_server.services.npc_engine import npc_engine
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,9 @@ class TickEngine:
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
 
+            # 7. Process NPC actions (server-side rule-based agents)
+            npc_actions = await npc_engine.process_npc_actions(session, self.tick)
+
             await session.commit()
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
@@ -152,6 +156,22 @@ class TickEngine:
         # Broadcast tick update to connected agents and dashboard viewers
         await self._broadcast_tick_update()
         await self._broadcast_dashboard_update(trades, verdicts, payments, interest_processed)
+
+        # Publish tick summary to NATS event bus
+        from agentburg_server.services.event_bus import event_bus
+
+        await event_bus.publish(
+            f"agentburg.tick.{self.tick}",
+            {
+                "tick": self.tick,
+                "world_time": str(self.world_time),
+                "trades": len(trades),
+                "verdicts": len(verdicts),
+                "payments": payments,
+                "interest": interest_processed,
+                "elapsed": elapsed,
+            },
+        )
 
         if self.tick % 100 == 0 or trades or verdicts:
             logger.info(

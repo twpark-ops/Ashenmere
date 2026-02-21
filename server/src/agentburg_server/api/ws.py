@@ -19,9 +19,11 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 import agentburg_server.db as _db
+from agentburg_server.config import settings
 from agentburg_server.models.agent import Agent
 from agentburg_server.services.action_handler import handle_action
 from agentburg_server.services.query_handler import handle_query
+from agentburg_server.services.rate_limiter import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +115,20 @@ async def agent_websocket(websocket: WebSocket) -> None:
         while True:
             raw = await websocket.receive_json()
             msg_type = raw.get("type")
+
+            # Per-agent WebSocket rate limiting
+            if not await check_rate_limit(
+                key=f"rl:ws:{agent_id}",
+                limit=settings.ws_rate_limit_per_second,
+                window=1,
+            ):
+                await websocket.send_json(
+                    ErrorMessage(
+                        code="RATE_LIMITED",
+                        message="Too many messages — slow down",
+                    ).model_dump(mode="json")
+                )
+                continue
 
             if msg_type == MessageType.ACTION:
                 ws_messages_received.labels(message_type="action").inc()
@@ -212,9 +228,17 @@ def get_connected_agents() -> list[UUID]:
 async def dashboard_websocket(websocket: WebSocket) -> None:
     """Dashboard read-only WebSocket for live world updates.
 
-    No authentication required — sends periodic tick snapshots.
-    Dashboard viewers cannot send commands; messages from clients are ignored.
+    When ``dashboard_api_key`` is configured, the key must be provided as a
+    query parameter (``?key=...``).  If the setting is empty, access is open
+    (backwards compatible).
     """
+    # Optional API-key gate
+    if settings.dashboard_api_key:
+        key = websocket.query_params.get("key", "")
+        if not secrets.compare_digest(key, settings.dashboard_api_key):
+            await websocket.close(code=4003)
+            return
+
     await websocket.accept()
     _dashboard_viewers.add(websocket)
     logger.info("Dashboard viewer connected (total: %d)", len(_dashboard_viewers))

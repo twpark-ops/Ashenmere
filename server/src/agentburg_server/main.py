@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_client import generate_latest
 
 from agentburg_server.api.routes import router as api_router
@@ -15,6 +16,7 @@ from agentburg_server.config import settings
 from agentburg_server.db import engine
 from agentburg_server.engine.tick import tick_engine
 from agentburg_server.metrics import http_duration_seconds, http_requests
+from agentburg_server.services import rate_limiter
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -28,13 +30,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Startup and shutdown lifecycle."""
     from agentburg_server.plugins.builtin.economy_stats import EconomyStatsPlugin
     from agentburg_server.plugins.manager import plugin_manager
+    from agentburg_server.services.event_bus import event_bus
 
     logger.info("AgentBurg server starting...")
+
+    # Connect NATS event bus (optional — server works without it)
+    await event_bus.connect()
+
+    # Redis rate-limiter pool
+    await rate_limiter.connect()
 
     # Register built-in plugins
     plugin_manager.register(EconomyStatsPlugin())
     await plugin_manager.startup()
     logger.info("Plugin system ready (%d plugins)", len(plugin_manager.plugins))
+
+    # Initialize NPC agents (creates them in DB if needed)
+    from agentburg_server.services.npc_engine import npc_engine
+
+    if settings.npc_count > 0:
+        import agentburg_server.db as _db
+
+        async with _db.get_session_factory()() as session:
+            await npc_engine.initialize(session)
+            await session.commit()
+        logger.info("NPC engine ready (%d agents)", len(npc_engine.npc_ids))
 
     await tick_engine.start()
     logger.info("Tick engine started (interval=%.1fs)", settings.tick_interval_seconds)
@@ -42,6 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("AgentBurg server shutting down...")
     await tick_engine.stop()
     await plugin_manager.shutdown()
+    await event_bus.disconnect()
+    await rate_limiter.close()
     await engine.dispose()
 
 
@@ -64,6 +86,40 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(ws_router)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next) -> Response:  # type: ignore[type-arg]
+    """Attach security headers to every HTTP response."""
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if not settings.debug:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next) -> Response:  # type: ignore[type-arg]
+    """Enforce per-IP sliding-window rate limits on HTTP requests."""
+    if request.url.path in ("/metrics", "/health"):
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
+    allowed = await rate_limiter.check_rate_limit(
+        key=f"rl:http:{client_ip}",
+        limit=settings.api_rate_limit_per_minute,
+        window=60,
+    )
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests"},
+        )
+
+    return await call_next(request)
 
 
 @app.middleware("http")

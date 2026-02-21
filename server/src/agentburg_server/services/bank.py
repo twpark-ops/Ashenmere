@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.economy import Account, AccountType
-from agentburg_server.models.event import EventCategory, WorldEventLog
+from agentburg_server.models.event import EventCategory
+from agentburg_server.services.event_logger import log_event as _log_event
 
 logger = logging.getLogger(__name__)
 
@@ -252,21 +253,3 @@ async def process_interest(session: AsyncSession, tick: int) -> int:
     return processed
 
 
-async def _log_event(
-    session: AsyncSession,
-    tick: int,
-    category: EventCategory,
-    event_type: str,
-    description: str,
-    agent_id: UUID | None = None,
-    data: dict | None = None,
-) -> None:
-    event = WorldEventLog(
-        tick=tick,
-        category=category,
-        event_type=event_type,
-        agent_id=agent_id,
-        description=description,
-        data=data or {},
-    )
-    session.add(event)

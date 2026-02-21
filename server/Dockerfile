@@ -9,7 +9,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /usr/local/bin/uv
 
 # Copy workspace config and dependency files first (layer cache)
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY shared/pyproject.toml shared/
 COPY server/pyproject.toml server/
 
@@ -36,10 +36,12 @@ RUN groupadd -r agentburg && useradd -r -g agentburg -d /app -s /sbin/nologin ag
 
 WORKDIR /app
 
-# Copy installed packages and venv from builder
+# Copy venv and workspace from builder
 COPY --from=builder /app /app
-COPY --from=builder /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Ensure venv binaries are on PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Create writable directories for tmp and cache (read-only root FS compatible)
 RUN mkdir -p /tmp/agentburg && chown agentburg:agentburg /tmp/agentburg

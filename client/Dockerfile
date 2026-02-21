@@ -9,7 +9,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.6 /uv /usr/local/bin/uv
 
 # Copy workspace config and dependency files first (layer cache)
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY shared/pyproject.toml shared/
 COPY client/pyproject.toml client/
 
@@ -31,10 +31,12 @@ RUN groupadd -r agent && useradd -r -g agent -d /app -s /sbin/nologin agent
 
 WORKDIR /app
 
-# Copy installed packages from builder
+# Copy venv and workspace from builder
 COPY --from=builder /app /app
-COPY --from=builder /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Ensure venv binaries are on PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Create writable directories (read-only root FS compatible)
 RUN mkdir -p /tmp/agent && chown agent:agent /tmp/agent \
