@@ -35,7 +35,7 @@ class WorldEventLog(Base, UUIDMixin):
     )
 
     tick: Mapped[int] = mapped_column(Integer, nullable=False)
-    category: Mapped[EventCategory] = mapped_column(SAEnum(EventCategory), nullable=False)
+    category: Mapped[EventCategory] = mapped_column(SAEnum(EventCategory, values_callable=lambda x: [e.value for e in x]), nullable=False)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     agent_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     target_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)

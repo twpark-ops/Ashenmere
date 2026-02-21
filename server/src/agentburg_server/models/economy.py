@@ -39,7 +39,7 @@ class Account(Base, UUIDMixin, TimestampMixin):
     agent_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True)
     agent: Mapped["Agent"] = relationship(back_populates="accounts")  # noqa: F821
 
-    account_type: Mapped[AccountType] = mapped_column(SAEnum(AccountType), default=AccountType.CHECKING, nullable=False)
+    account_type: Mapped[AccountType] = mapped_column(SAEnum(AccountType, values_callable=lambda x: [e.value for e in x]), default=AccountType.CHECKING, nullable=False)
     balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     interest_rate: Mapped[int] = mapped_column(Integer, default=300, nullable=False)  # basis points (300 = 3%)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -71,11 +71,15 @@ class MarketOrder(Base, UUIDMixin, TimestampMixin):
 
     agent_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True)
     item: Mapped[str] = mapped_column(String(100), nullable=False)
-    side: Mapped[OrderSide] = mapped_column(SAEnum(OrderSide), nullable=False)
+    side: Mapped[OrderSide] = mapped_column(SAEnum(OrderSide, values_callable=lambda x: [e.value for e in x]), nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)  # In cents
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     filled_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    status: Mapped[OrderStatus] = mapped_column(SAEnum(OrderStatus), default=OrderStatus.OPEN, nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        SAEnum(OrderStatus, values_callable=lambda x: [e.value for e in x]),
+        default=OrderStatus.OPEN,
+        nullable=False,
+    )
     tick_created: Mapped[int] = mapped_column(Integer, nullable=False)
     tick_expires: Mapped[int | None] = mapped_column(Integer)  # NULL = no expiry
 
@@ -119,7 +123,7 @@ class Property(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "properties"
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    property_type: Mapped[PropertyType] = mapped_column(SAEnum(PropertyType), nullable=False)
+    property_type: Mapped[PropertyType] = mapped_column(SAEnum(PropertyType, values_callable=lambda x: [e.value for e in x]), nullable=False)
     location: Mapped[str] = mapped_column(String(100), nullable=False)
     owner_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("agents.id"), nullable=True, index=True
