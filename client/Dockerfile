@@ -17,9 +17,9 @@ COPY client/pyproject.toml client/
 COPY shared/ shared/
 COPY client/ client/
 
-# Install dependencies into system Python
-RUN uv sync --frozen --no-dev --package agentburg-client 2>/dev/null || \
-    uv pip install --system -e ./shared -e ./client
+# Install dependencies (locked = assert lockfile is up to date)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --package agentburg-client
 
 # =============================================================================
 # Stage 2: Production runtime

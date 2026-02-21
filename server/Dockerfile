@@ -17,9 +17,9 @@ COPY server/pyproject.toml server/
 COPY shared/ shared/
 COPY server/ server/
 
-# Install dependencies into a virtual environment
-RUN uv sync --frozen --no-dev --package agentburg-server 2>/dev/null || \
-    uv pip install --system -e ./shared -e ./server
+# Install dependencies (locked = assert lockfile is up to date)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --package agentburg-server
 
 # =============================================================================
 # Stage 2: Production runtime
@@ -57,4 +57,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["python", "-m", "uvicorn", "agentburg_server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m uvicorn agentburg_server.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -50,7 +50,6 @@ logs/
 
 # uv
 .python-version
-uv.lock
 
 # Claude Code / AI assistant
 .claude/
