@@ -25,6 +25,7 @@ from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
 from agentburg_server.services.market import run_batch_auction
 from agentburg_server.services.production import process_production
+from agentburg_server.services.world_events import WorldEventEngine
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ class TickEngine:
         self.macro_interval: float = getattr(settings, "macro_tick_seconds", 600.0)
         self.micro_interval: float = getattr(settings, "micro_tick_seconds", 30.0)
         self._task: asyncio.Task | None = None
+        self.world_events = WorldEventEngine()
 
     @property
     def time_of_day(self) -> str:
@@ -131,7 +133,24 @@ class TickEngine:
 
         # Plugin hook: before_tick
 
+        # 0. Roll for world events
+        new_events = self.world_events.roll_events(self.tick)
+        for evt in new_events:
+            logger.info("WORLD EVENT: %s — %s", evt.name, evt.announcement)
+
         async with _db.get_session_factory()() as session:
+            # Log world events
+            for evt in new_events:
+                from agentburg_server.models.event import EventCategory, WorldEventLog
+                event_log = WorldEventLog(
+                    tick=self.tick,
+                    category=EventCategory.WORLD,
+                    event_type="world_event",
+                    description=evt.announcement,
+                    data={"event_name": evt.name, "effects": str(evt.effects), "duration": evt.duration},
+                )
+                session.add(event_log)
+
             # 1. Run batch auction for market orders
             trades = await run_batch_auction(session, self.tick)
 

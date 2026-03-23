@@ -23,6 +23,7 @@ class EventCategory(enum.StrEnum):
     SOCIAL = "social"
     SYSTEM = "system"
     CRIME = "crime"
+    WORLD = "world"
 
 
 class WorldEventLog(Base, UUIDMixin):
