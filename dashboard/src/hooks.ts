@@ -7,13 +7,14 @@ export interface TickUpdate {
 }
 
 /**
- * Lightweight WebSocket hook for dashboard tick updates.
- * Reconnects automatically on disconnect with exponential backoff.
+ * WebSocket hook for dashboard tick updates.
+ * Reconnects with exponential backoff. Cleans up on unmount.
  */
 export function useTickStream(onTick: (update: TickUpdate) => void) {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const retriesRef = useRef(0);
+  const timeoutRef = useRef<number>(0);
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
@@ -32,7 +33,7 @@ export function useTickStream(onTick: (update: TickUpdate) => void) {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as TickUpdate;
-        if (data.type === "tick_update") {
+        if (data.type === "tick_update" || data.type === "micro_tick") {
           onTickRef.current(data);
         }
       } catch {
@@ -43,10 +44,9 @@ export function useTickStream(onTick: (update: TickUpdate) => void) {
     ws.onclose = () => {
       setConnected(false);
       wsRef.current = null;
-      // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s max
       const delay = Math.min(1000 * 2 ** retriesRef.current, 30000);
       retriesRef.current++;
-      setTimeout(connect, delay);
+      timeoutRef.current = window.setTimeout(connect, delay);
     };
 
     ws.onerror = () => {
@@ -57,6 +57,7 @@ export function useTickStream(onTick: (update: TickUpdate) => void) {
   useEffect(() => {
     connect();
     return () => {
+      clearTimeout(timeoutRef.current);
       wsRef.current?.close();
     };
   }, [connect]);

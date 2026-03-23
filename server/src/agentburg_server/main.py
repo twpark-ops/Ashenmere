@@ -74,14 +74,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     await _ensure_active_season()
 
     yield
-    logger.info("AgentBurg server shutting down...")
+    logger.info("Ashenmere server shutting down...")
     await tick_engine.stop()
     await rate_limiter.close()
     await engine.dispose()
 
 
 app = FastAPI(
-    title="AgentBurg",
+    title="Ashenmere",
     description="Autonomous AI agent economy simulation platform",
     version="0.1.0",
     lifespan=lifespan,

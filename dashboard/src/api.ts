@@ -4,7 +4,12 @@ const API_BASE = "/api/v1";
 
 async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, options);
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // Parse server error details (FastAPI returns {detail: "..."})
+    const body = await res.json().catch(() => null);
+    const detail = body?.detail ?? `${res.status} ${res.statusText}`;
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
   return res.json() as Promise<T>;
 }
 
@@ -14,10 +19,6 @@ export function getWorldStatus(): Promise<WorldStatus> {
 
 export function getAgents(limit = 50, offset = 0): Promise<Agent[]> {
   return fetchJSON(`/agents?limit=${limit}&offset=${offset}`);
-}
-
-export function getAgent(id: string): Promise<Agent> {
-  return fetchJSON(`/agents/${id}`);
 }
 
 export interface WorldEvent {
@@ -42,6 +43,7 @@ export interface Season {
   description: string;
   status: string;
   theme: string;
+  rules: Record<string, unknown>;
   start_tick: number | null;
   end_tick: number | null;
   max_agents: number;
@@ -57,8 +59,12 @@ export interface LeaderboardEntry {
   reputation: number;
 }
 
-export function getCurrentSeason(): Promise<Season | null> {
-  return fetchJSON("/seasons/current");
+export async function getCurrentSeason(): Promise<Season | null> {
+  try {
+    return await fetchJSON("/seasons/current");
+  } catch {
+    return null;
+  }
 }
 
 export function getLeaderboard(seasonId: string): Promise<LeaderboardEntry[]> {
@@ -67,11 +73,17 @@ export function getLeaderboard(seasonId: string): Promise<LeaderboardEntry[]> {
 
 // --- Auth ---
 
+interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: { id: string; username: string; email: string };
+}
+
 export async function registerUser(
   email: string,
   username: string,
   password: string
-): Promise<{ access_token: string; user: { id: string; username: string } }> {
+): Promise<AuthResponse> {
   return fetchJSON("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,7 +94,7 @@ export async function registerUser(
 export async function loginUser(
   email: string,
   password: string
-): Promise<{ access_token: string }> {
+): Promise<AuthResponse> {
   return fetchJSON("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

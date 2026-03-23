@@ -2,11 +2,16 @@ export interface Agent {
   id: string;
   name: string;
   title: string | null;
+  bio: string | null;
   tier: string;
   status: string;
   balance: number;
+  inventory: Record<string, number>;
   reputation: number;
   location: string;
+  pos_x: number;
+  pos_y: number;
+  total_trades: number;
 }
 
 export interface WorldStatus {
@@ -17,16 +22,4 @@ export interface WorldStatus {
   world_time: string;
   time_of_day: string;
   day: number;
-}
-
-export interface MarketPrice {
-  item: string;
-  price: number;
-}
-
-export interface TradeEvent {
-  tick: number;
-  item: string;
-  price: number;
-  quantity: number;
 }
