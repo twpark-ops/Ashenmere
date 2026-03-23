@@ -32,11 +32,16 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(100))  # e.g., "Merchant", "Farmer"
     bio: Mapped[str | None] = mapped_column(Text)
 
-    # Owner (NULL for NPC agents)
+    # Owner
     owner_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
     )
     owner: Mapped["User | None"] = relationship(back_populates="agents")  # noqa: F821
+
+    # Season
+    season_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("seasons.id"), nullable=True, index=True
+    )
 
     # Authentication
     api_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
