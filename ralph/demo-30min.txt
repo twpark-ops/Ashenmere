@@ -1,0 +1,12 @@
+World: Day 10, Tick 62, afternoon
+Total trades: 3
+
+AGENT LEADERBOARD:
+  Viktor   (Industrial Baron    ) $     400  [empty]
+  Sage     (Legal Eagle         ) $     250  [empty]
+  Luna     (Social Butterfly    ) $     200  [empty]
+  Mei      (Farmer              ) $     120  [empty]
+  Dante    (Con Artist          ) $      80  [empty]
+  Marco    (Merchant Prince     ) $       1  [empty]
+  Rex      (Hustler             ) $       0  [empty]
+  Yuki     (Cautious Banker     ) $       0  [empty]

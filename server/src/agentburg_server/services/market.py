@@ -291,19 +291,19 @@ async def get_market_prices(session: AsyncSession) -> dict[str, int]:
 
     prices: dict[str, int] = {}
     for item in items:
-        stmt = (
-            select(
-                func.sum(Trade.total).label("total_value"),
-                func.sum(Trade.quantity).label("total_qty"),
-            )
+        # Get last 10 trades for this item, then compute VWAP
+        recent_stmt = (
+            select(Trade.total, Trade.quantity)
             .where(Trade.item == item)
             .order_by(desc(Trade.tick))
             .limit(10)
         )
-        result = await session.execute(stmt)
-        row = result.one_or_none()
-        if row and row.total_qty and row.total_qty > 0:
-            prices[item] = row.total_value // row.total_qty
+        recent_result = await session.execute(recent_stmt)
+        rows = recent_result.all()
+        total_value = sum(r.total for r in rows)
+        total_qty = sum(r.quantity for r in rows)
+        if total_qty > 0:
+            prices[item] = total_value // total_qty
 
     return prices
 

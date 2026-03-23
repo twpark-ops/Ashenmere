@@ -63,12 +63,14 @@ fish: 45, wool: 55, cloth: 100, tools: 150, leather: 90, meat: 70,
 ale: 35, medicine: 200, spices: 180
 
 TRADING RULES:
-- If you have items in inventory, SELL them at or above fair price.
-- If you want items, place BUY orders at or below fair price.
+- SELL items you have in inventory at or above fair price.
+- BUY items you DON'T have — diversify! Buy wheat, iron, tools, gold, etc.
+- Look at what OTHER agents might be selling and place buy orders for those items.
+- Vary your trades: don't just buy/sell the same item every turn.
 - Buy low from desperate sellers, sell high to eager buyers.
 - NEVER idle when you have inventory to sell or money to spend.
-- An empty market is an OPPORTUNITY — be first to place orders.
 - Prices in the params are PER UNIT in coins (e.g., price: 50 means 50 coins each).
+- Every turn, try to either SELL something from inventory or BUY something new.
 
 Be strategic. Think about long-term consequences. Stay in character."""
 
@@ -427,17 +429,28 @@ class AgentBrain:
 
     def _format_market(self, market: dict) -> str:
         """Format market data for the prompt."""
-        prices = market.get("prices", {})
-        if not prices:
-            return "No market data available."
-
         lines = []
-        for item, price in sorted(prices.items()):
-            trending = ""
-            if item in market.get("trending_up", []):
-                trending = " [TRENDING UP]"
-            elif item in market.get("trending_down", []):
-                trending = " [TRENDING DOWN]"
-            lines.append(f"  {item}: {price} coins{trending}")
+
+        prices = market.get("prices", {})
+        if prices:
+            lines.append("RECENT PRICES:")
+            for item, price in sorted(prices.items()):
+                lines.append(f"  {item}: {price} coins")
+
+        open_orders = market.get("open_orders", [])
+        if open_orders:
+            sells = [o for o in open_orders if o["side"] == "sell"]
+            buys = [o for o in open_orders if o["side"] == "buy"]
+            if sells:
+                lines.append("ITEMS FOR SALE (you can buy these):")
+                for o in sells[:10]:
+                    lines.append(f"  {o['item']}: {o['quantity']}x @ {o['price']} coins each")
+            if buys:
+                lines.append("BUY ORDERS (you can sell to these):")
+                for o in buys[:10]:
+                    lines.append(f"  {o['item']}: {o['quantity']}x wanted @ {o['price']} coins each")
+
+        if not lines:
+            return "Market is empty. Place the first buy or sell order!"
 
         return "\n".join(lines)

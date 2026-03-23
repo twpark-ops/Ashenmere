@@ -194,7 +194,26 @@ class TickEngine:
         async with _db.get_session_factory()() as session:
             # Fetch market data once for all agents
             prices = await get_market_prices(session)
-            market_data = {"prices": prices}
+
+            # Include open orders so agents can see what's available to buy/sell
+            from agentburg_server.models.economy import MarketOrder, OrderSide, OrderStatus
+            open_orders_stmt = (
+                select(MarketOrder)
+                .where(MarketOrder.status == OrderStatus.OPEN)
+                .order_by(MarketOrder.item)
+            )
+            open_result = await session.execute(open_orders_stmt)
+            open_orders = []
+            for o in open_result.scalars().all():
+                open_orders.append({
+                    "item": o.item,
+                    "side": o.side.value,
+                    "price": o.price,
+                    "quantity": o.quantity - o.filled_quantity,
+                    "agent_id": str(o.agent_id),
+                })
+
+            market_data = {"prices": prices, "open_orders": open_orders}
 
             # Send personalized updates to each connected agent
             for agent_id in connected:
