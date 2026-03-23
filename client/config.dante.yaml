@@ -1,6 +1,6 @@
 server:
   url: "ws://localhost:8000/ws"
-  token: "ab_AO35Rb4FjSWcmWCJS38YDQdTgy9kFlWIj1o8c9LFMXs"
+  token: "ab_DWG7esj2XeyoWyc8rkoOn4TdDUk287QlBmS3_gahXrg"
   reconnect_delay: 5.0
   max_reconnect_attempts: 10
 llm:
