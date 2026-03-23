@@ -39,8 +39,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # World simulation
-    tick_interval_seconds: float = 2.0
-    ticks_per_day: int = 720
+    tick_interval_seconds: float = 2.0  # legacy — used as fallback
+    ticks_per_day: int = 6  # macro ticks per simulated day
+    macro_tick_seconds: float = 600.0  # 10 minutes between economic ticks
+    micro_tick_seconds: float = 30.0  # 30 seconds between ambient ticks
     initial_agent_balance: int = 10000  # In cents ($100.00)
 
     # CORS (production origins)

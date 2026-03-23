@@ -80,6 +80,8 @@ class WorldStatusResponse(BaseModel):
     total_trades: int
     tick: int
     world_time: str
+    time_of_day: str
+    day: int
 
 
 # --- Auth Routes ---
@@ -202,6 +204,8 @@ async def world_status(
         "total_trades": trades or 0,
         "tick": tick_engine.tick,
         "world_time": str(tick_engine.world_time),
+        "time_of_day": tick_engine.time_of_day,
+        "day": tick_engine.day,
     }
 
 

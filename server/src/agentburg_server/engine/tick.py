@@ -28,15 +28,32 @@ from agentburg_server.services.market import run_batch_auction
 logger = logging.getLogger(__name__)
 
 
+TIME_OF_DAY_CYCLE = ["morning", "morning", "afternoon", "afternoon", "evening", "night"]
+
+
 class TickEngine:
-    """World simulation tick loop."""
+    """World simulation tick loop with macro/micro tick layers.
+
+    Macro tick (default 600s / 10min): economic decisions — trades, contracts, interest.
+    Micro tick (default 30s): lightweight activity — movement, chat, thinking.
+    6 macro ticks = 1 simulated day (morning → morning → afternoon → afternoon → evening → night).
+    """
 
     def __init__(self) -> None:
-        self.tick: int = 0
+        self.tick: int = 0          # macro tick counter
+        self.micro_tick: int = 0    # micro tick counter within current macro tick
+        self.day: int = 0           # simulated day counter
         self.running: bool = False
-        self.ticks_per_day: int = settings.ticks_per_day
-        self.tick_interval: float = settings.tick_interval_seconds
+        self.ticks_per_day: int = settings.ticks_per_day  # macro ticks per day (default 6)
+        self.macro_interval: float = getattr(settings, "macro_tick_seconds", 600.0)
+        self.micro_interval: float = getattr(settings, "micro_tick_seconds", 30.0)
         self._task: asyncio.Task | None = None
+
+    @property
+    def time_of_day(self) -> str:
+        """Current time of day based on macro tick within the day cycle."""
+        idx = self.tick % len(TIME_OF_DAY_CYCLE)
+        return TIME_OF_DAY_CYCLE[idx]
 
     async def start(self) -> None:
         """Start the tick loop."""
@@ -44,7 +61,10 @@ class TickEngine:
             return
         self.running = True
         self._task = asyncio.create_task(self._run())
-        logger.info("Tick engine started (interval=%.1fs, ticks/day=%d)", self.tick_interval, self.ticks_per_day)
+        logger.info(
+            "Tick engine started (macro=%.0fs, micro=%.0fs, ticks/day=%d)",
+            self.macro_interval, self.micro_interval, self.ticks_per_day,
+        )
 
     async def stop(self) -> None:
         """Stop the tick loop gracefully."""
@@ -56,17 +76,45 @@ class TickEngine:
         logger.info("Tick engine stopped at tick %d", self.tick)
 
     async def _run(self) -> None:
-        """Main tick loop."""
+        """Main tick loop — alternates micro ticks with periodic macro ticks."""
+        micros_per_macro = max(1, int(self.macro_interval / self.micro_interval))
+
         while self.running:
             try:
+                self.micro_tick = 0
+                # Run micro ticks between macro ticks
+                for i in range(micros_per_macro):
+                    if not self.running:
+                        break
+                    self.micro_tick = i
+                    await self._process_micro_tick()
+                    if i < micros_per_macro - 1:
+                        await asyncio.sleep(self.micro_interval)
+
+                # Macro tick: full economic processing
                 await self._process_tick()
                 self.tick += 1
-                await asyncio.sleep(self.tick_interval)
+                if self.tick % self.ticks_per_day == 0:
+                    self.day += 1
+                    logger.info("Day %d begins (%s)", self.day, self.time_of_day)
             except asyncio.CancelledError:
                 break
             except Exception:
                 logger.exception("Error in tick %d", self.tick)
-                await asyncio.sleep(self.tick_interval)
+                await asyncio.sleep(self.micro_interval)
+
+    async def _process_micro_tick(self) -> None:
+        """Process a lightweight micro tick — movement, chat, ambient activity."""
+        from agentburg_server.api.ws import broadcast_to_dashboard
+
+        update = {
+            "type": "micro_tick",
+            "tick": self.tick,
+            "micro_tick": self.micro_tick,
+            "time_of_day": self.time_of_day,
+            "world_time": str(self.world_time),
+        }
+        await broadcast_to_dashboard(update)
 
     async def _process_tick(self) -> None:
         """Process a single world tick."""
