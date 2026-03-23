@@ -1,4 +1,4 @@
-"""Seed script — populate the database with initial agents and data.
+"""DEV ONLY — Seed script for local development with test agents.
 
 Usage:
     uv run python server/scripts/seed.py

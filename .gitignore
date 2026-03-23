@@ -73,3 +73,6 @@ dashboard/dist/
 credentials.*
 secrets.*
 !secrets.*.example
+
+# User agent config (not committed — contains tokens)
+client/config.yaml
