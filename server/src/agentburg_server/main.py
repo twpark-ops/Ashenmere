@@ -52,7 +52,7 @@ async def _ensure_active_season() -> None:
             rules={},
             start_tick=tick_engine.tick,
             end_tick=end_tick,
-            max_agents=50,
+            max_agents=settings.season_max_agents,
         )
         session.add(season)
         await session.commit()

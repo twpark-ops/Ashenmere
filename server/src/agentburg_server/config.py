@@ -39,11 +39,17 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # World simulation
-    tick_interval_seconds: float = 2.0  # legacy — used as fallback
+    # Pacing: 1 real hour = 1 sim day (6 macro ticks × 10 min)
+    # Users check ~3 times/day → 8 sim days between checks → plenty of drama
+    tick_interval_seconds: float = 2.0  # legacy fallback
     ticks_per_day: int = 6  # macro ticks per simulated day
-    macro_tick_seconds: float = 600.0  # 10 minutes between economic ticks
-    micro_tick_seconds: float = 30.0  # 30 seconds between ambient ticks
+    macro_tick_seconds: float = 600.0  # 10 min between economic ticks
+    micro_tick_seconds: float = 30.0  # 30 sec between ambient ticks
     initial_agent_balance: int = 10000  # In cents ($100.00)
+
+    # Seasons
+    season_duration_days: int = 168  # simulated days per season (= 7 real days)
+    season_max_agents: int = 50
 
     # CORS (production origins)
     cors_origins: list[str] = []
