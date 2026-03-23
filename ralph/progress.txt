@@ -1,0 +1,12 @@
+# Ralph Progress — AgentBurg Living World MVP
+# Branch: ralph/living-world-mvp
+# Started: 2026-03-23
+
+## Completed
+- US-000: Dead code removal (NPC, plugins, NATS, event_bus) — 2026-03-23
+
+## In Progress
+- US-001: Fork AI Town and strip Convex dependency
+
+## Pending
+- US-002 through US-009

@@ -1,0 +1,146 @@
+{
+  "project": "AgentBurg Living World",
+  "branchName": "ralph/living-world-mvp",
+  "description": "AI Town frontend + AgentBurg Python backend hybrid. Persistent world where AI agents live, trade, and compete with time compression (1 real hour = 1 agent day).",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fork AI Town and strip Convex dependency",
+      "description": "As a developer, I need the AI Town frontend code (PixiJS 2D map, React UI) without Convex backend so I can connect it to our Python FastAPI backend.",
+      "acceptanceCriteria": [
+        "AI Town frontend code copied into project (src/frontend/ or similar)",
+        "All Convex imports replaced with placeholder API client module",
+        "Frontend builds without errors (npm run build passes)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Source: https://github.com/a16z-infra/ai-town. MIT license. Keep PixiJS map renderer, agent sprite system, React components. Remove Convex functions, auth, and backend logic."
+    },
+    {
+      "id": "US-002",
+      "title": "Create API bridge: frontend REST client → FastAPI",
+      "description": "As a developer, I need the frontend to fetch world state and agent data from our Python FastAPI backend instead of Convex.",
+      "acceptanceCriteria": [
+        "API client module calls GET /api/v1/world/status for world state",
+        "API client calls GET /api/v1/agents for agent list with positions",
+        "Frontend renders agent positions on 2D map from API data",
+        "CORS configured on FastAPI for frontend origin",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "FastAPI endpoints already exist at /api/v1/world/status and /api/v1/agents. Add position/location data to agent response if missing."
+    },
+    {
+      "id": "US-003",
+      "title": "WebSocket bridge: real-time tick updates to frontend",
+      "description": "As a user, I want the 2D map to update in real-time as agents move and act, without page refresh.",
+      "acceptanceCriteria": [
+        "Frontend connects to ws://.../ws/dashboard WebSocket",
+        "Tick updates (agent positions, actions, chat) stream to frontend",
+        "2D map re-renders agent sprites on each update",
+        "Reconnects automatically on disconnect",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "WebSocket endpoint already exists at /ws/dashboard in ws.py. Frontend hooks.ts already has useTickStream with reconnect logic — adapt it."
+    },
+    {
+      "id": "US-004",
+      "title": "Implement macro tick (10min) + micro tick (30sec) engine",
+      "description": "As a developer, I need two tick layers: macro ticks for economic decisions every 10 minutes, and micro ticks for small activities every 30 seconds, so the world feels alive.",
+      "acceptanceCriteria": [
+        "TickEngine has configurable macro_interval (default 600s) and micro_interval (default 30s)",
+        "Micro ticks trigger lightweight agent actions (move, think, chat)",
+        "Macro ticks trigger economic actions (trade, contract, reputation update)",
+        "Both tick types broadcast updates via WebSocket",
+        "Tests cover macro/micro tick sequencing",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Modify existing engine/tick.py. Micro tick = lightweight LLM call (short prompt, quick response). Macro tick = full economic processing (existing batch auction, interest, etc.)"
+    },
+    {
+      "id": "US-005",
+      "title": "Add time-of-day cycle to simulation",
+      "description": "As a user, I want to see agents follow a daily rhythm (morning→afternoon→evening→night) so the world feels alive.",
+      "acceptanceCriteria": [
+        "World state includes current time_of_day (morning/afternoon/evening/night)",
+        "6 macro ticks = 1 full day cycle",
+        "Agent prompts include time-of-day context",
+        "Frontend displays current time-of-day indicator",
+        "Tests cover day cycle transitions",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "Morning: ticks 1-2, Afternoon: ticks 3-4, Evening: tick 5, Night: tick 6. Agents should behave differently (e.g., trade in afternoon, socialize in evening, sleep at night)."
+    },
+    {
+      "id": "US-006",
+      "title": "Add agent position and movement system",
+      "description": "As a user, I want to see agents move around the 2D map, visiting locations like the market, bank, and town square.",
+      "acceptanceCriteria": [
+        "Agent model has x, y position fields",
+        "Predefined locations: market, bank, town_square, residential (with coordinates)",
+        "Agents move to relevant locations based on actions (trade→market, deposit→bank)",
+        "Micro ticks update agent positions with smooth interpolation data",
+        "Frontend renders agent movement on 2D map",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Keep positions simple: grid-based or point-based. AI Town has pathfinding but we can start with instant teleport to locations."
+    },
+    {
+      "id": "US-007",
+      "title": "Configure and seed 5-10 diverse agents with LLM",
+      "description": "As a user, I want to see diverse AI agents with distinct personalities living in the world.",
+      "acceptanceCriteria": [
+        "Seed script creates 5-10 agents with varied personalities",
+        "Each agent has: name, bio, personality traits (risk_tolerance, greed, honesty), initial balance",
+        "Agents use DeepSeek/Qwen API for LLM decisions (configurable)",
+        "Agent prompts include personality, world state, time-of-day, and recent history",
+        "All agents successfully complete at least one tick cycle",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Agent personalities should create natural drama: one greedy trader, one cautious banker, one social butterfly, one con artist, etc. Use client/brain.py decision engine."
+    },
+    {
+      "id": "US-008",
+      "title": "Build event timeline feed UI",
+      "description": "As a user, I want to see a real-time feed of agent events (trades, chats, conflicts) like a social media timeline.",
+      "acceptanceCriteria": [
+        "Timeline panel shows recent agent events chronologically",
+        "Events include: trades, chat messages, reputation changes, contract events",
+        "Each event shows agent name, action, and timestamp",
+        "New events appear at top with subtle animation",
+        "Timeline auto-scrolls but pauses on hover",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "This is the 'drama feed' — the core engagement mechanic. Events should read like a story: 'Marco sold 50 wheat to Yuki for $500' or 'Sage filed a lawsuit against Marco for breach of contract'."
+    },
+    {
+      "id": "US-009",
+      "title": "Run 24-hour simulation and capture demo footage",
+      "description": "As a developer, I need to run the simulation for 24 real hours (= 24 agent days) and capture compelling footage for a demo GIF/video.",
+      "acceptanceCriteria": [
+        "Simulation runs stably for 24+ hours without crashes",
+        "At least 3 interesting events occur (trade, conflict, reputation change)",
+        "Screenshot/recording captures agents moving, trading, and chatting",
+        "LLM API costs stay within $5 for the 24h run",
+        "No memory leaks (RSS stays under 500MB)"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "This is the validation milestone. If the simulation produces boring results, revisit agent personalities and prompts before making the demo."
+    }
+  ]
+}

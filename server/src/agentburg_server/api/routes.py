@@ -278,3 +278,47 @@ async def list_trades(
     stmt = stmt.order_by(Trade.tick.desc()).limit(limit)
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+# --- World Events ---
+
+
+class EventResponse(BaseModel):
+    id: UUID
+    tick: int
+    category: str
+    event_type: str
+    description: str
+    agent_id: UUID | None
+    timestamp: str
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/events", response_model=list[EventResponse])
+async def list_events(
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(default=50, ge=1, le=MAX_LIST_LIMIT),
+) -> list:
+    """List recent world events for the timeline feed."""
+    from agentburg_server.models.event import WorldEventLog
+
+    stmt = (
+        select(WorldEventLog)
+        .order_by(WorldEventLog.tick.desc(), WorldEventLog.created_at.desc())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        EventResponse(
+            id=r.id,
+            tick=r.tick,
+            category=r.category.value if hasattr(r.category, 'value') else str(r.category),
+            event_type=r.event_type,
+            description=r.description,
+            agent_id=r.agent_id,
+            timestamp=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in rows
+    ]
