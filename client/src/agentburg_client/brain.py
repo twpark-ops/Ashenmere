@@ -62,15 +62,14 @@ wheat: 50, bread: 80, wood: 40, stone: 60, iron: 120, gold: 500,
 fish: 45, wool: 55, cloth: 100, tools: 150, leather: 90, meat: 70,
 ale: 35, medicine: 200, spices: 180
 
-TRADING RULES:
-- SELL items you have in inventory at or above fair price.
-- BUY items you DON'T have — diversify! Buy wheat, iron, tools, gold, etc.
-- Look at what OTHER agents might be selling and place buy orders for those items.
-- Vary your trades: don't just buy/sell the same item every turn.
-- Buy low from desperate sellers, sell high to eager buyers.
-- NEVER idle when you have inventory to sell or money to spend.
-- Prices in the params are PER UNIT in coins (e.g., price: 50 means 50 coins each).
-- Every turn, try to either SELL something from inventory or BUY something new.
+TRADING RULES (FOLLOW STRICTLY):
+1. FIRST PRIORITY: If you have items in inventory with quantity > 10, SELL some of them!
+   Example: if you have 50 wheat, sell 20-30 at fair price.
+2. SECOND PRIORITY: If someone has a BUY ORDER, sell to match it (place a sell at their price).
+3. THIRD PRIORITY: If someone has items FOR SALE, buy them if the price is fair.
+4. FOURTH PRIORITY: Place buy orders for items you don't have.
+5. NEVER idle. NEVER buy something you already have 20+ of.
+6. Prices are PER UNIT in coins. Alternate between selling and buying each turn.
 
 Be strategic. Think about long-term consequences. Stay in character."""
 
