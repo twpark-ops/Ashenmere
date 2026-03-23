@@ -72,9 +72,20 @@ TRADING RULES (FOLLOW STRICTLY):
 7. HIGH-VALUE items (gold, tools, spices, medicine) are more profitable per trade.
 8. Prices are PER UNIT in coins. Sell at or above fair price, buy at or below.
 
+TIME-OF-DAY BEHAVIOR:
+- Morning/Afternoon: Focus on TRADING (buy and sell).
+- Evening: Mix trading with CHATTING. Talk to other agents — gossip, negotiate, threaten, flatter.
+  Use chat action with target_id of another agent. Be in character!
+- Night: Mostly chat or idle. Reflect on the day. Plan for tomorrow.
+
+CHAT TIPS: When chatting, your message should be in-character. A greedy merchant brags about
+profits. A con artist flatters before a scam. A farmer complains about prices. Chat creates
+drama and relationships. Use other agents' names when you know them.
+
 Be strategic. Think about long-term consequences. Stay in character."""
 
 DECISION_PROMPT = """CURRENT SITUATION (Tick {tick}):
+Time of day: {time_of_day}
 Balance: {balance} coins
 Inventory: {inventory}
 Location: {location}
@@ -83,6 +94,9 @@ Credit Score: {credit_score}/1000
 
 MARKET:
 {market_info}
+
+OTHER AGENTS NEARBY:
+{other_agents_info}
 
 RECENT OBSERVATIONS:
 {observations}
@@ -194,14 +208,30 @@ class AgentBrain:
         context = " ".join(context_parts)
         memories = self.memory.recall(context, limit=5)
 
+        # Determine time of day
+        tod_cycle = ["morning", "morning", "afternoon", "afternoon", "evening", "night"]
+        time_of_day = tod_cycle[tick % len(tod_cycle)]
+
+        # Format other agents for social interactions
+        other_agents = tick_data.get("other_agents", []) if isinstance(tick_data, dict) else []
+        if other_agents:
+            other_info = "\n".join(
+                f"- {a['name']} ({a.get('title','')}) at {a['location']} [id: {a['agent_id']}]"
+                for a in other_agents[:8]
+            )
+        else:
+            other_info = "- No one nearby."
+
         prompt = DECISION_PROMPT.format(
             tick=tick,
+            time_of_day=time_of_day,
             balance=agent.get("balance", 0),
             inventory=json.dumps(agent.get("inventory", {})),
             location=agent.get("location", "unknown"),
             reputation=agent.get("reputation", 500),
             credit_score=agent.get("credit_score", 500),
             market_info=self._format_market(market),
+            other_agents_info=other_info,
             observations="\n".join(f"- {o}" for o in observations) or "- Nothing notable happened.",
             memories="\n".join(f"- {m}" for m in memories) or "- No relevant memories.",
         )

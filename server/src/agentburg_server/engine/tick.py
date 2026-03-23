@@ -225,10 +225,23 @@ class TickEngine:
                 if agent is None:
                     continue
 
+                # Build list of other agents for social interactions
+                other_agents = []
+                all_agents_stmt = select(Agent).where(Agent.id != agent_id)
+                all_agents_result = await session.execute(all_agents_stmt)
+                for other in all_agents_result.scalars().all():
+                    other_agents.append({
+                        "agent_id": str(other.id),
+                        "name": other.name,
+                        "title": other.title or "",
+                        "location": other.location,
+                    })
+
                 update_data = {
                     "type": "tick_update",
                     "tick": self.tick,
                     "world_time": str(self.world_time),
+                    "time_of_day": self.time_of_day,
                     "agent": {
                         "agent_id": str(agent.id),
                         "name": agent.name,
@@ -240,6 +253,7 @@ class TickEngine:
                         "status": agent.status.value,
                     },
                     "market": market_data,
+                    "other_agents": other_agents,
                     "observations": [],
                 }
                 await broadcast_to_agent(agent_id, update_data)
