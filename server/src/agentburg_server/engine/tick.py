@@ -183,6 +183,9 @@ class TickEngine:
             if await game_master.should_evaluate(self.tick):
                 await game_master.evaluate_and_act(session, self.tick, self.day)
 
+            # 9. Check season end
+            await self._check_season_end(session)
+
             await session.commit()
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
@@ -365,6 +368,38 @@ async def _process_contract_payments(session: AsyncSession, tick: int) -> int:
             )
 
     return payments_made
+
+
+    async def _check_season_end(self, session: AsyncSession) -> None:
+        """End current season if end_tick reached, start new one."""
+        from agentburg_server.models.season import Season, SeasonStatus
+
+        result = await session.execute(
+            select(Season).where(Season.status == SeasonStatus.ACTIVE).limit(1)
+        )
+        season = result.scalar_one_or_none()
+        if not season or not season.end_tick:
+            return
+
+        if self.tick >= season.end_tick:
+            season.status = SeasonStatus.ENDED
+            logger.info("Season '%s' ENDED at tick %d", season.name, self.tick)
+
+            # Auto-create next season
+            season_num = int("".join(c for c in season.name if c.isdigit()) or "1") + 1
+            new_end = self.tick + (self.ticks_per_day * 168)
+            new_season = Season(
+                name=f"Season {season_num}: The Next Chapter",
+                description=f"A new era begins in Ashenmere.",
+                status=SeasonStatus.ACTIVE,
+                theme="frontier",
+                rules={},
+                start_tick=self.tick,
+                end_tick=new_end,
+                max_agents=50,
+            )
+            session.add(new_season)
+            logger.info("New season created: Season %d (ticks %d–%d)", season_num, self.tick, new_end)
 
 
 # Singleton

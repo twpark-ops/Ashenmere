@@ -25,16 +25,54 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def _ensure_active_season() -> None:
+    """Create a default season if none exists."""
+    from agentburg_server.models.season import Season, SeasonStatus
+
+    async with _db.get_session_factory()() as session:
+        from sqlalchemy import select
+
+        existing = await session.scalar(
+            select(Season).where(Season.status == SeasonStatus.ACTIVE).limit(1)
+        )
+        if existing:
+            logger.info("Active season: %s (tick %s–%s)", existing.name, existing.start_tick, existing.end_tick)
+            return
+
+        # Calculate end_tick: 7 real days = 1008 macro ticks (at 600s/tick)
+        ticks_per_day = settings.ticks_per_day  # 6
+        season_days = 168  # simulated days
+        end_tick = tick_engine.tick + (ticks_per_day * season_days)
+
+        season = Season(
+            name="Season 1: Age of Iron",
+            description="The first season of Ashenmere. Prove your worth in the frontier economy.",
+            status=SeasonStatus.ACTIVE,
+            theme="frontier",
+            rules={},
+            start_tick=tick_engine.tick,
+            end_tick=end_tick,
+            max_agents=50,
+        )
+        session.add(season)
+        await session.commit()
+        logger.info("Created Season 1: Age of Iron (ticks %d–%d)", tick_engine.tick, end_tick)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Startup and shutdown lifecycle."""
-    logger.info("AgentBurg server starting...")
+    logger.info("Ashenmere server starting...")
 
     # Redis rate-limiter pool
     await rate_limiter.connect()
 
     await tick_engine.start()
     logger.info("Tick engine started (interval=%.1fs)", settings.tick_interval_seconds)
+
+    # Ensure an active season exists
+    await _ensure_active_season()
+
     yield
     logger.info("AgentBurg server shutting down...")
     await tick_engine.stop()

@@ -113,6 +113,14 @@ async def create_agent(
 
     raw_token, token_hash = generate_agent_token()
 
+    # Auto-assign to current active season
+    from agentburg_server.models.season import Season, SeasonStatus
+
+    season_result = await session.execute(
+        select(Season).where(Season.status == SeasonStatus.ACTIVE).limit(1)
+    )
+    active_season = season_result.scalar_one_or_none()
+
     agent = Agent(
         name=name,
         title=title,
@@ -121,6 +129,7 @@ async def create_agent(
         api_token_hash=token_hash,
         tier=AgentTier.PLAYER,
         balance=settings.initial_agent_balance,
+        season_id=active_season.id if active_season else None,
     )
     session.add(agent)
     await session.flush()
