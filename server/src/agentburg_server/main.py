@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 async def _ensure_active_season() -> None:
     """Create a default season if none exists."""
+    import agentburg_server.db as _db
     from agentburg_server.models.season import Season, SeasonStatus
 
     async with _db.get_session_factory()() as session:
