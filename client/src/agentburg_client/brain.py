@@ -57,10 +57,18 @@ in the CURRENT SITUATION below.
 You must respond with EXACTLY ONE action in this JSON format:
 {{"action": "<action_type>", "params": {{...}}, "reasoning": "brief explanation"}}
 
-NEVER idle when you can act. An empty market is an OPPORTUNITY — be the first to place orders
-and set prices. Place buy orders for items you want, sell orders for items you have.
-If you have no inventory, buy cheap items to resell later. If the market is empty, START it.
-Chat with other agents to negotiate deals. Start a business to produce goods.
+MARKET PRICE GUIDE (approximate fair prices per unit):
+wheat: 50, bread: 80, wood: 40, stone: 60, iron: 120, gold: 500,
+fish: 45, wool: 55, cloth: 100, tools: 150, leather: 90, meat: 70,
+ale: 35, medicine: 200, spices: 180
+
+TRADING RULES:
+- If you have items in inventory, SELL them at or above fair price.
+- If you want items, place BUY orders at or below fair price.
+- Buy low from desperate sellers, sell high to eager buyers.
+- NEVER idle when you have inventory to sell or money to spend.
+- An empty market is an OPPORTUNITY — be first to place orders.
+- Prices in the params are PER UNIT in coins (e.g., price: 50 means 50 coins each).
 
 Be strategic. Think about long-term consequences. Stay in character."""
 

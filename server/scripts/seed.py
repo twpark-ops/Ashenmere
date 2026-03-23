@@ -28,6 +28,7 @@ AGENTS = [
         "bio": "A shrewd trader who built his fortune from nothing. Trusts numbers, not people.",
         "balance": 50000,
         "location": "market",
+        "inventory": {"wheat": 20, "cloth": 15, "spices": 5},
     },
     {
         "name": "Yuki",
@@ -35,6 +36,7 @@ AGENTS = [
         "bio": "Former accountant who believes in slow, steady wealth. Never takes unnecessary risks.",
         "balance": 30000,
         "location": "bank",
+        "inventory": {"gold": 3, "medicine": 10},
     },
     {
         "name": "Sage",
@@ -49,6 +51,7 @@ AGENTS = [
         "bio": "Fast-talking dealer who lives on the edge. High risk, high reward. Sometimes crosses the line.",
         "balance": 15000,
         "location": "tavern",
+        "inventory": {"ale": 30, "leather": 10, "iron": 8},
     },
     {
         "name": "Luna",
@@ -56,6 +59,7 @@ AGENTS = [
         "bio": "Everyone's friend, nobody's enemy. Trades favors more than goods. Knows all the gossip.",
         "balance": 20000,
         "location": "town_center",
+        "inventory": {"bread": 10, "fish": 10, "wool": 5},
     },
     {
         "name": "Viktor",
@@ -63,6 +67,7 @@ AGENTS = [
         "bio": "Believes in production over speculation. Builds things. Employs people. Controls supply.",
         "balance": 40000,
         "location": "workshop",
+        "inventory": {"iron": 25, "wood": 30, "tools": 15, "stone": 20},
     },
     {
         "name": "Mei",
@@ -70,6 +75,7 @@ AGENTS = [
         "bio": "Simple, honest, hardworking. Grows food, sells at market. Suspicious of city folk.",
         "balance": 12000,
         "location": "farm",
+        "inventory": {"wheat": 50, "meat": 15, "bread": 20},
     },
     {
         "name": "Dante",
@@ -77,6 +83,7 @@ AGENTS = [
         "bio": "Charming, persuasive, and completely untrustworthy. Every deal has a hidden angle.",
         "balance": 8000,
         "location": "tavern",
+        "inventory": {"spices": 8, "ale": 15, "gold": 1},
     },
 ]
 
@@ -126,6 +133,7 @@ async def seed_database() -> None:
                 api_token_hash=token_hash,
                 tier=AgentTier.PLAYER,
                 balance=agent_data["balance"],
+                inventory=agent_data.get("inventory", {}),
                 location=agent_data["location"],
                 pos_x=x,
                 pos_y=y,
