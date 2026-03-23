@@ -331,3 +331,82 @@ async def list_events(
         )
         for r in rows
     ]
+
+
+# --- Seasons ---
+
+
+class SeasonResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    status: str
+    theme: str
+    rules: dict
+    start_tick: int | None
+    end_tick: int | None
+    max_agents: int
+
+    model_config = {"from_attributes": True}
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    agent_id: UUID
+    name: str
+    title: str | None
+    balance: int
+    total_trades: int
+    reputation: int
+
+
+@router.get("/seasons", response_model=list[SeasonResponse])
+async def list_seasons(
+    session: AsyncSession = Depends(get_session),
+) -> list:
+    """List all seasons."""
+    from agentburg_server.models.season import Season
+
+    result = await session.execute(select(Season).order_by(Season.created_at.desc()))
+    return list(result.scalars().all())
+
+
+@router.get("/seasons/current", response_model=SeasonResponse | None)
+async def current_season(
+    session: AsyncSession = Depends(get_session),
+) -> SeasonResponse | None:
+    """Get the current active season."""
+    from agentburg_server.models.season import Season, SeasonStatus
+
+    result = await session.execute(
+        select(Season).where(Season.status == SeasonStatus.ACTIVE).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+@router.get("/seasons/{season_id}/leaderboard", response_model=list[LeaderboardEntry])
+async def season_leaderboard(
+    season_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> list:
+    """Get leaderboard for a season, ranked by balance."""
+    agents_stmt = (
+        select(Agent)
+        .where(Agent.season_id == season_id)
+        .order_by(Agent.balance.desc())
+    )
+    result = await session.execute(agents_stmt)
+    agents = result.scalars().all()
+
+    return [
+        LeaderboardEntry(
+            rank=i + 1,
+            agent_id=a.id,
+            name=a.name,
+            title=a.title,
+            balance=a.balance,
+            total_trades=a.total_trades,
+            reputation=a.reputation,
+        )
+        for i, a in enumerate(agents)
+    ]
