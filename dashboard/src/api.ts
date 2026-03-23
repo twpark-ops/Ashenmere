@@ -19,3 +19,17 @@ export function getAgents(limit = 50, offset = 0): Promise<Agent[]> {
 export function getAgent(id: string): Promise<Agent> {
   return fetchJSON(`/agents/${id}`);
 }
+
+export interface WorldEvent {
+  id: string;
+  tick: number;
+  category: string;
+  event_type: string;
+  description: string;
+  agent_id: string | null;
+  timestamp: string;
+}
+
+export function getEvents(limit = 50): Promise<WorldEvent[]> {
+  return fetchJSON(`/events?limit=${limit}`);
+}

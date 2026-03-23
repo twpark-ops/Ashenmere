@@ -10,7 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getAgents, getWorldStatus } from "./api";
+import { getAgents, getEvents, getWorldStatus } from "./api";
+import type { WorldEvent } from "./api";
 import { useTickHistory, useTickStream } from "./hooks";
 import type { Agent, WorldStatus } from "./types";
 
@@ -299,11 +300,75 @@ function AgentTable({ agents }: { agents: Agent[] }) {
   );
 }
 
+// --- Event Timeline ---
+
+const TIME_ICONS: Record<string, string> = {
+  morning: "\u{1F305}",
+  afternoon: "\u{2600}\u{FE0F}",
+  evening: "\u{1F306}",
+  night: "\u{1F319}",
+};
+
+function TimeOfDayBadge({ time }: { time: string }) {
+  return (
+    <span className="tick-badge" style={{ fontSize: 14 }}>
+      {TIME_ICONS[time] || "\u{23F0}"} {time}
+    </span>
+  );
+}
+
+function EventTimeline({ events }: { events: WorldEvent[] }) {
+  if (events.length === 0) {
+    return (
+      <div className="card">
+        <h2>Live Events</h2>
+        <div className="loading" style={{ padding: "20px 0", fontSize: 13 }}>
+          No events yet...
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="card" style={{ maxHeight: 400, overflowY: "auto" }}>
+      <h2>Live Events</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {events.map((e, i) => (
+          <div
+            key={e.id || i}
+            style={{
+              background: "var(--card-bg)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "10px 12px",
+              fontSize: 13,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                color: "var(--text-dim)",
+                fontSize: 11,
+                marginBottom: 4,
+              }}
+            >
+              <span>Tick #{e.tick}</span>
+              <span>{e.category}</span>
+            </div>
+            <div style={{ color: "var(--text)" }}>{e.description}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // --- Main App ---
 
 export function App() {
   const [status, setStatus] = useState<WorldStatus | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [events, setEvents] = useState<WorldEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { history, addPoint } = useTickHistory(60);
@@ -311,9 +376,10 @@ export function App() {
   // Full data refresh from REST API
   const refresh = useCallback(async () => {
     try {
-      const [s, a] = await Promise.all([getWorldStatus(), getAgents()]);
+      const [s, a, ev] = await Promise.all([getWorldStatus(), getAgents(), getEvents()]);
       setStatus(s);
       setAgents(a);
+      setEvents(ev);
       setError(null);
       setLastUpdate(new Date());
       addPoint(s.tick, s.active_agents, s.total_trades);
@@ -354,7 +420,8 @@ export function App() {
           Agent<span>Burg</span>
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {status && <span className="tick-badge">Tick #{status.tick}</span>}
+          {status?.time_of_day && <TimeOfDayBadge time={status.time_of_day} />}
+          {status && <span className="tick-badge">Day {status.day} · Tick #{status.tick}</span>}
           <span
             className={`ws-indicator ${wsConnected ? "ws-indicator--on" : "ws-indicator--off"}`}
             title={wsConnected ? "Live updates active" : "Polling mode"}
@@ -374,7 +441,10 @@ export function App() {
         <BalanceDistribution agents={agents} />
       </div>
 
-      <AgentTable agents={agents} />
+      <div className="charts-grid">
+        <EventTimeline events={events} />
+        <AgentTable agents={agents} />
+      </div>
     </div>
   );
 }

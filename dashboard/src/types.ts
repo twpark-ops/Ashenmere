@@ -15,6 +15,8 @@ export interface WorldStatus {
   total_trades: number;
   tick: number;
   world_time: string;
+  time_of_day: string;
+  day: number;
 }
 
 export interface MarketPrice {
