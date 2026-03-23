@@ -23,6 +23,7 @@ from agentburg_server.models.agent import Agent
 from agentburg_server.models.social import Contract, ContractStatus, ContractType
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
+from agentburg_server.services.game_master import game_master
 from agentburg_server.services.market import run_batch_auction
 from agentburg_server.services.production import process_production
 from agentburg_server.services.world_events import WorldEventEngine
@@ -177,6 +178,10 @@ class TickEngine:
             interest_processed = 0
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
+
+            # 8. AI Game Master evaluation (every sim-day)
+            if await game_master.should_evaluate(self.tick):
+                await game_master.evaluate_and_act(session, self.tick, self.day)
 
             await session.commit()
 
