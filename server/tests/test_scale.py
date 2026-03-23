@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 import agentburg_server.db as _db
 from agentburg_server.models.agent import Agent, AgentStatus, AgentTier
 from agentburg_server.models.economy import OrderSide
-from agentburg_server.plugins.base import HookType, Plugin, PluginMetadata
 from agentburg_server.plugins.manager import PluginManager
 from agentburg_server.services.market import place_order, run_batch_auction
 
@@ -288,7 +287,6 @@ async def test_plugin_dispatch_throughput():
     t0 = time.monotonic()
 
     for tick in range(1000):
-        await mgr.dispatch(HookType.BEFORE_TICK, tick=tick)
 
     elapsed = time.monotonic() - t0
 

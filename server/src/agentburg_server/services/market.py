@@ -18,13 +18,26 @@ from agentburg_server.models.economy import (
     Trade,
 )
 from agentburg_server.models.event import EventCategory
-from agentburg_server.services.event_logger import log_event as _log_event
 
 logger = logging.getLogger(__name__)
 
 # Economic limits to prevent market manipulation
 MAX_ORDER_PRICE = 10_000_00  # $10,000 in cents
 MAX_ORDER_QUANTITY = 10_000
+
+
+
+async def _log_event(
+    session, tick, category, event_type, description,
+    agent_id=None, target_id=None, data=None,
+):
+    from agentburg_server.models.event import WorldEventLog
+    event = WorldEventLog(
+        tick=tick, category=category, event_type=event_type,
+        agent_id=agent_id, target_id=target_id,
+        description=description, data=data or {},
+    )
+    session.add(event)
 
 
 async def place_order(
@@ -215,22 +228,6 @@ async def run_batch_auction(session: AsyncSession, tick: int) -> list[Trade]:
                 seller.total_earnings += total
 
             trades.append(trade)
-
-            # Publish trade event to NATS event bus
-            from agentburg_server.services.event_bus import event_bus
-
-            await event_bus.publish(
-                f"agentburg.trade.{item}",
-                {
-                    "tick": tick,
-                    "item": item,
-                    "price": match_price,
-                    "quantity": match_quantity,
-                    "total": total,
-                    "buyer_id": str(buy.agent_id),
-                    "seller_id": str(sell.agent_id),
-                },
-            )
 
             # Log the trade event
             await _log_event(

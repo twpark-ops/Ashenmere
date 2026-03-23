@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.economy import Account, AccountType
 from agentburg_server.models.event import EventCategory
-from agentburg_server.services.event_logger import log_event as _log_event
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +16,20 @@ logger = logging.getLogger(__name__)
 MAX_LOAN_AMOUNT = 500_000  # $5,000 in cents
 MAX_DEPOSIT_AMOUNT = 10_000_000  # $100,000 in cents
 MAX_WITHDRAWAL_AMOUNT = 10_000_000
+
+
+
+async def _log_event(
+    session, tick, category, event_type, description,
+    agent_id=None, target_id=None, data=None,
+):
+    from agentburg_server.models.event import WorldEventLog
+    event = WorldEventLog(
+        tick=tick, category=category, event_type=event_type,
+        agent_id=agent_id, target_id=target_id,
+        description=description, data=data or {},
+    )
+    session.add(event)
 
 
 async def open_account(

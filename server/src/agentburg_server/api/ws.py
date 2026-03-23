@@ -106,10 +106,6 @@ async def agent_websocket(websocket: WebSocket) -> None:
         logger.info("Agent %s connected", agent_id)
 
         # Plugin hook: on_agent_connect
-        from agentburg_server.plugins.base import HookType
-        from agentburg_server.plugins.manager import plugin_manager
-
-        await plugin_manager.dispatch(HookType.ON_AGENT_CONNECT, agent_id=agent_id)
 
         # Main message loop
         while True:
@@ -187,10 +183,6 @@ async def agent_websocket(websocket: WebSocket) -> None:
             _connections.pop(agent_id, None)
 
             # Plugin hook: on_agent_disconnect
-            from agentburg_server.plugins.base import HookType
-            from agentburg_server.plugins.manager import plugin_manager
-
-            await plugin_manager.dispatch(HookType.ON_AGENT_DISCONNECT, agent_id=agent_id)
 
             # Mark agent as disconnected
             try:

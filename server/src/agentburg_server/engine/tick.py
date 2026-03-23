@@ -21,11 +21,9 @@ import agentburg_server.db as _db
 from agentburg_server.config import settings
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.social import Contract, ContractStatus, ContractType
-from agentburg_server.plugins.base import HookType
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
 from agentburg_server.services.market import run_batch_auction
-from agentburg_server.services.npc_engine import npc_engine
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +77,10 @@ class TickEngine:
             trade_volume,
             trades_total,
         )
-        from agentburg_server.plugins.manager import plugin_manager
 
         start = datetime.now(UTC)
 
         # Plugin hook: before_tick
-        await plugin_manager.dispatch(HookType.BEFORE_TICK, tick=self.tick)
 
         async with _db.get_session_factory()() as session:
             # 1. Run batch auction for market orders
@@ -94,16 +90,6 @@ class TickEngine:
             for trade in trades:
                 trades_total.inc()
                 trade_volume.inc(trade.total)
-                await plugin_manager.dispatch(
-                    HookType.ON_TRADE,
-                    session=session,
-                    tick=self.tick,
-                    buyer_id=trade.buyer_id,
-                    seller_id=trade.seller_id,
-                    item=trade.item,
-                    price=trade.price,
-                    quantity=trade.quantity,
-                )
 
             # 3. Process court cases
             verdicts = await process_pending_cases(session, self.tick)
@@ -112,16 +98,6 @@ class TickEngine:
             for case in verdicts:
                 result = "guilty" if case.status.value == "verdict_guilty" else "not_guilty"
                 court_verdicts.labels(result=result).inc()
-                await plugin_manager.dispatch(
-                    HookType.ON_VERDICT,
-                    session=session,
-                    tick=self.tick,
-                    case_id=case.id,
-                    plaintiff_id=case.plaintiff_id,
-                    defendant_id=case.defendant_id,
-                    guilty=case.status.value == "verdict_guilty",
-                    fine=case.fine_amount or 0,
-                )
 
             # 5. Process employment contract payments
             payments = await _process_contract_payments(session, self.tick)
@@ -131,9 +107,6 @@ class TickEngine:
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
 
-            # 7. Process NPC actions (server-side rule-based agents)
-            npc_actions = await npc_engine.process_npc_actions(session, self.tick)
-
             await session.commit()
 
         elapsed = (datetime.now(UTC) - start).total_seconds()
@@ -142,36 +115,9 @@ class TickEngine:
         tick_current.set(self.tick)
         tick_duration_seconds.observe(elapsed)
 
-        # Plugin hook: after_tick
-        await plugin_manager.dispatch(
-            HookType.AFTER_TICK,
-            tick=self.tick,
-            trades=len(trades),
-            verdicts=len(verdicts),
-            payments=payments,
-            interest=interest_processed,
-            elapsed=elapsed,
-        )
-
         # Broadcast tick update to connected agents and dashboard viewers
         await self._broadcast_tick_update()
         await self._broadcast_dashboard_update(trades, verdicts, payments, interest_processed)
-
-        # Publish tick summary to NATS event bus
-        from agentburg_server.services.event_bus import event_bus
-
-        await event_bus.publish(
-            f"agentburg.tick.{self.tick}",
-            {
-                "tick": self.tick,
-                "world_time": str(self.world_time),
-                "trades": len(trades),
-                "verdicts": len(verdicts),
-                "payments": payments,
-                "interest": interest_processed,
-                "elapsed": elapsed,
-            },
-        )
 
         if self.tick % 100 == 0 or trades or verdicts:
             logger.info(

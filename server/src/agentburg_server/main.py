@@ -28,41 +28,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Startup and shutdown lifecycle."""
-    from agentburg_server.plugins.builtin.economy_stats import EconomyStatsPlugin
-    from agentburg_server.plugins.manager import plugin_manager
-    from agentburg_server.services.event_bus import event_bus
-
     logger.info("AgentBurg server starting...")
-
-    # Connect NATS event bus (optional — server works without it)
-    await event_bus.connect()
 
     # Redis rate-limiter pool
     await rate_limiter.connect()
-
-    # Register built-in plugins
-    plugin_manager.register(EconomyStatsPlugin())
-    await plugin_manager.startup()
-    logger.info("Plugin system ready (%d plugins)", len(plugin_manager.plugins))
-
-    # Initialize NPC agents (creates them in DB if needed)
-    from agentburg_server.services.npc_engine import npc_engine
-
-    if settings.npc_count > 0:
-        import agentburg_server.db as _db
-
-        async with _db.get_session_factory()() as session:
-            await npc_engine.initialize(session)
-            await session.commit()
-        logger.info("NPC engine ready (%d agents)", len(npc_engine.npc_ids))
 
     await tick_engine.start()
     logger.info("Tick engine started (interval=%.1fs)", settings.tick_interval_seconds)
     yield
     logger.info("AgentBurg server shutting down...")
     await tick_engine.stop()
-    await plugin_manager.shutdown()
-    await event_bus.disconnect()
     await rate_limiter.close()
     await engine.dispose()
 
@@ -142,14 +117,11 @@ async def metrics_middleware(request: Request, call_next) -> Response:  # type: 
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint."""
-    from agentburg_server.plugins.manager import plugin_manager
-
     return {
         "status": "ok",
         "version": "0.1.0",
         "tick": tick_engine.tick,
         "tick_running": tick_engine.running,
-        "plugins": plugin_manager.plugin_names,
     }
 
 

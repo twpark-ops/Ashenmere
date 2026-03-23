@@ -9,10 +9,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentburg_server.models.agent import Agent, AgentStatus
 from agentburg_server.models.event import EventCategory
-from agentburg_server.services.event_logger import log_event as _log_event
 from agentburg_server.models.social import CaseStatus, CaseType, CourtCase
 
 logger = logging.getLogger(__name__)
+
+
+
+async def _log_event(
+    session, tick, category, event_type, description,
+    agent_id=None, target_id=None, data=None,
+):
+    from agentburg_server.models.event import WorldEventLog
+    event = WorldEventLog(
+        tick=tick, category=category, event_type=event_type,
+        agent_id=agent_id, target_id=target_id,
+        description=description, data=data or {},
+    )
+    session.add(event)
 
 
 async def file_lawsuit(
@@ -131,23 +144,6 @@ async def process_pending_cases(session: AsyncSession, tick: int) -> list[CourtC
 
         case.tick_resolved = tick
         resolved.append(case)
-
-        # Publish verdict event to NATS event bus
-        from agentburg_server.services.event_bus import event_bus
-
-        await event_bus.publish(
-            f"agentburg.verdict.{case.id}",
-            {
-                "tick": tick,
-                "case_id": str(case.id),
-                "case_type": case.case_type.value,
-                "plaintiff_id": str(case.plaintiff_id),
-                "defendant_id": str(case.defendant_id),
-                "guilty": guilty,
-                "fine": case.fine_amount or 0,
-                "verdict_details": case.verdict_details,
-            },
-        )
 
         await _log_event(
             session,

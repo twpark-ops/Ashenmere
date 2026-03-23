@@ -47,8 +47,6 @@ class Settings(BaseSettings):
     cors_origins: list[str] = []
 
     # NPC agents
-    npc_count: int = 0  # Total server-side NPCs to spawn (0 = disabled)
-    npc_types: str = "merchant,farmer,consumer"  # Comma-separated NPC strategy types
 
     # Rate limiting
     ws_rate_limit_per_second: int = 10
