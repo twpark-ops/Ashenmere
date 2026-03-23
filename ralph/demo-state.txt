@@ -1,0 +1,32 @@
+============================================================
+  AGENTBURG LIVING WORLD — DEMO STATE
+============================================================
+
+World: Day 1 | Tick #9 | afternoon
+Agents: 8/8 active | Trades: 0
+
+--- AGENTS ---
+  Sage     (Legal Eagle         ) | $     250 | rep=500 | courthouse
+  Luna     (Social Butterfly    ) | $     200 | rep=500 | town_center
+  Viktor   (Industrial Baron    ) | $     400 | rep=500 | workshop
+  Mei      (Farmer              ) | $     120 | rep=500 | farm
+  Dante    (Con Artist          ) | $      80 | rep=500 | tavern
+  Yuki     (Cautious Banker     ) | $     300 | rep=500 | bank
+  Rex      (Hustler             ) | $     670 | rep=500 | tavern
+  Marco    (Merchant Prince     ) | $     459 | rep=500 | market
+
+--- MARKET ORDERS ---
+
+--- LIVE EVENTS (15 total) ---
+  Tick   9 | [trade   ] buy order: 1x spices @ 180
+  Tick   9 | [bank    ] Loan of 30000 issued at 650bp
+  Tick   8 | [trade   ] buy order: 2x spices @ 180
+  Tick   8 | [bank    ] Loan of 10000 issued at 650bp
+  Tick   7 | [trade   ] buy order: 5x spices @ 180
+  Tick   7 | [bank    ] Loan of 10000 issued at 650bp
+  Tick   6 | [trade   ] buy order: 5x spices @ 180
+  Tick   5 | [trade   ] buy order: 5x spices @ 180
+  Tick   5 | [trade   ] buy order: 100x ale @ 30
+  Tick   4 | [trade   ] buy order: 5x spices @ 180
+
+============================================================
