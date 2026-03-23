@@ -83,7 +83,7 @@ async def agent_b(db_session: AsyncSession) -> Agent:
         name="QueryBob",
         title="Builder",
         api_token_hash=sha256(b"qb-token").hexdigest(),
-        tier=AgentTier.NPC_LLM,
+        tier=AgentTier.PLAYER,
         status=AgentStatus.ACTIVE,
         balance=8_000,
         inventory={},

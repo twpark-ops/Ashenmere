@@ -14,8 +14,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": "Source: https://github.com/a16z-infra/ai-town. MIT license. Keep PixiJS map renderer, agent sprite system, React components. Remove Convex functions, auth, and backend logic."
+      "passes": true,
+      "notes": "Completed 2026-03-23"
     },
     {
       "id": "US-002",
@@ -29,8 +29,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "FastAPI endpoints already exist at /api/v1/world/status and /api/v1/agents. Add position/location data to agent response if missing."
+      "passes": true,
+      "notes": "Completed 2026-03-23"
     },
     {
       "id": "US-003",
@@ -44,8 +44,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": "WebSocket endpoint already exists at /ws/dashboard in ws.py. Frontend hooks.ts already has useTickStream with reconnect logic — adapt it."
+      "passes": true,
+      "notes": "Completed 2026-03-23"
     },
     {
       "id": "US-004",
@@ -60,8 +60,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": "Modify existing engine/tick.py. Micro tick = lightweight LLM call (short prompt, quick response). Macro tick = full economic processing (existing batch auction, interest, etc.)"
+      "passes": true,
+      "notes": "Completed 2026-03-23"
     },
     {
       "id": "US-005",
@@ -76,8 +76,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": "Morning: ticks 1-2, Afternoon: ticks 3-4, Evening: tick 5, Night: tick 6. Agents should behave differently (e.g., trade in afternoon, socialize in evening, sleep at night)."
+      "passes": true,
+      "notes": "Completed 2026-03-23"
     },
     {
       "id": "US-006",

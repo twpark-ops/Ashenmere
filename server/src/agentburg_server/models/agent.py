@@ -21,9 +21,7 @@ class AgentStatus(enum.StrEnum):
 
 
 class AgentTier(enum.StrEnum):
-    PLAYER = "player"  # User-controlled via Docker client
-    NPC_LLM = "npc_llm"  # Server-hosted LLM agent
-    NPC_RULE = "npc_rule"  # Server-hosted rule-based agent
+    PLAYER = "player"  # User-controlled agent (BYO-LLM)
 
 
 class Agent(Base, UUIDMixin, TimestampMixin):
@@ -53,6 +51,8 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     balance: Mapped[int] = mapped_column(Integer, default=10000, nullable=False)  # In cents
     inventory: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     location: Mapped[str] = mapped_column(String(100), default="town_center", nullable=False)
+    pos_x: Mapped[int] = mapped_column(Integer, default=500, nullable=False)
+    pos_y: Mapped[int] = mapped_column(Integer, default=500, nullable=False)
 
     # Reputation
     reputation: Mapped[int] = mapped_column(Integer, default=500, nullable=False)  # 0-1000

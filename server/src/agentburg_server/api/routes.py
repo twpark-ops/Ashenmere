@@ -65,6 +65,8 @@ class AgentResponse(BaseModel):
     balance: int
     reputation: int
     location: str
+    pos_x: int = 500
+    pos_y: int = 500
 
     model_config = {"from_attributes": True}
 
