@@ -46,7 +46,7 @@ class ConnectionState(StrEnum):
 
 
 class ServerConnection:
-    """Manages WebSocket connection to the AgentBurg world server.
+    """Manages WebSocket connection to the Ashenmere world server.
 
     Features:
         - Exponential backoff with jitter for reconnection (base 1s, max 60s)

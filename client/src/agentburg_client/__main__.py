@@ -300,7 +300,7 @@ async def _agent_loop(
 def main() -> None:
     """CLI entry point with crash recovery."""
     parser = argparse.ArgumentParser(
-        description="AgentBurg Agent Brain",
+        description="Ashenmere Agent Brain",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

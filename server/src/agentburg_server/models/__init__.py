@@ -1,4 +1,4 @@
-"""Database models for AgentBurg world state."""
+"""Database models for Ashenmere world state."""
 
 from agentburg_server.models.agent import Agent
 from agentburg_server.models.base import Base

@@ -1,4 +1,4 @@
-"""Shared test fixtures for AgentBurg server tests.
+"""Shared test fixtures for Ashenmere server tests.
 
 Provides an async SQLite in-memory database, session management,
 FastAPI TestClient with DI overrides, and reusable sample entities.

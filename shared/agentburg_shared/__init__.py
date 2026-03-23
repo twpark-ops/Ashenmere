@@ -1,1 +1,1 @@
-"""AgentBurg shared protocol and models."""
+"""Ashenmere shared protocol and models."""

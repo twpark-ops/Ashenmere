@@ -1,4 +1,4 @@
-# === AgentBurg Agent Configuration ===
+# === Ashenmere Agent Configuration ===
 
 server:
   url: "ws://localhost:8000/ws"

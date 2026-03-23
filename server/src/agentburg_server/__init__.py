@@ -1,1 +1,1 @@
-"""AgentBurg world server."""
+"""Ashenmere world server."""

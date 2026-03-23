@@ -1,9 +1,9 @@
-"""Prometheus metrics for AgentBurg server."""
+"""Prometheus metrics for Ashenmere server."""
 
 from prometheus_client import Counter, Gauge, Histogram, Info
 
 # Server info
-server_info = Info("agentburg", "AgentBurg server information")
+server_info = Info("agentburg", "Ashenmere server information")
 server_info.info({"version": "0.1.0"})
 
 # Tick engine

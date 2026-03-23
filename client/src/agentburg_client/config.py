@@ -86,7 +86,7 @@ class PersonalityConfig(BaseModel):
     name: str = Field(default="Agent", min_length=1, max_length=64)
     title: str = Field(default="Merchant", min_length=1, max_length=64)
     bio: str = Field(
-        default="A resourceful trader in the AgentBurg world.",
+        default="A resourceful trader in the Ashenmere world.",
         max_length=1024,
     )
     risk_tolerance: float = Field(default=0.5, ge=0.0, le=1.0)
