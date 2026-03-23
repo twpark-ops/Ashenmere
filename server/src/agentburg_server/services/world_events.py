@@ -5,7 +5,7 @@ market prices, and agent incomes. They force agents to adapt their strategies,
 creating emergent narrative and economic turbulence.
 
 Design principles:
-- Probability budget: ~17% total per tick (event every ~5-7 ticks on average)
+- Probability budget: ~21% per tick with category-blocking (event every ~5 ticks)
 - Mix of positive, negative, and mixed-impact events
 - Location-specific effects create winners and losers simultaneously
 - Rare events are memorable and reshape the economy for multiple ticks
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -42,13 +42,15 @@ class WorldEvent:
 # ---------------------------------------------------------------------------
 # Event registry — 14 events across 4 categories
 # ---------------------------------------------------------------------------
-# Probability budget breakdown:
-#   Weather  (4): 0.08 + 0.06 + 0.07 + 0.05 = 0.26  (summed raw)
-#   Economic (4): 0.06 + 0.04 + 0.05 + 0.04 = 0.19
-#   Social   (4): 0.07 + 0.03 + 0.05 + 0.04 = 0.19
-#   Rare     (2): 0.02 + 0.01               = 0.03
+# Probability budget (tuned via 100k-tick Monte Carlo simulation):
+#   Weather  (4): 0.030 + 0.025 + 0.030 + 0.020 = 0.105
+#   Economic (4): 0.025 + 0.015 + 0.020 + 0.015 = 0.075
+#   Social   (4): 0.030 + 0.010 + 0.020 + 0.015 = 0.075
+#   Rare     (2): 0.008 + 0.003                  = 0.011
 #   --------------------------------------------------
-#   Raw sum: 0.67  => per-tick P(at least one) ≈ 1 - (1-p1)(1-p2)... ≈ 0.17
+#   Raw sum: 0.266 => raw P(>=1) = 23.6%
+#   With category-blocking: effective ~20.8% per tick (~1 event per 4.8 ticks)
+#   Active effects coverage: ~53% of all ticks
 # ---------------------------------------------------------------------------
 
 WORLD_EVENTS: list[WorldEvent] = [
@@ -62,7 +64,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "fields and washes out the dock roads, crippling food production "
             "and halting fishing operations."
         ),
-        probability=0.08,
+        probability=0.03,
         duration=3,
         effects={
             "production_modifier": {
@@ -92,7 +94,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "Weeks without rain have parched the soil. Crops wither in the fields "
             "and livestock grow thin, while the workshop forges burn hotter than ever."
         ),
-        probability=0.06,
+        probability=0.025,
         duration=4,
         effects={
             "production_modifier": {
@@ -124,7 +126,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "Perfect weather and fertile soil produce a harvest beyond anyone's "
             "memory. Barns overflow with grain and livestock fatten on lush pastures."
         ),
-        probability=0.07,
+        probability=0.03,
         duration=3,
         effects={
             "production_modifier": {
@@ -155,7 +157,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "An impenetrable fog blankets the coastline. Fishing boats cannot "
             "navigate and trade ships anchor offshore, waiting for clear skies."
         ),
-        probability=0.05,
+        probability=0.02,
         duration=2,
         effects={
             "production_modifier": {
@@ -186,7 +188,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "wagons groaning under exotic goods. Competition drives local prices "
             "down but opens new trade opportunities."
         ),
-        probability=0.06,
+        probability=0.025,
         duration=2,
         effects={
             "production_modifier": {
@@ -219,7 +221,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "the taverns. Traders rush to sell before prices crater further, "
             "creating a self-fulfilling prophecy."
         ),
-        probability=0.04,
+        probability=0.015,
         duration=3,
         effects={
             "price_modifier": {
@@ -247,7 +249,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "spreads fast and fortune-seekers flood into town, spending freely "
             "but driving up the cost of everything."
         ),
-        probability=0.05,
+        probability=0.02,
         duration=3,
         effects={
             "production_modifier": {
@@ -280,7 +282,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "dispute. Imported goods vanish from shelves and local producers "
             "struggle to fill the gap."
         ),
-        probability=0.04,
+        probability=0.015,
         duration=4,
         effects={
             "production_modifier": {
@@ -317,7 +319,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "the region. Ale flows freely, merchants hawk their finest wares, "
             "and everyone opens their purse strings a little wider."
         ),
-        probability=0.07,
+        probability=0.03,
         duration=2,
         effects={
             "production_modifier": {
@@ -350,7 +352,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "production grinds to a halt, and the desperate scramble for "
             "medicine sends its price through the roof."
         ),
-        probability=0.03,
+        probability=0.01,
         duration=5,
         effects={
             "production_modifier": {
@@ -387,7 +389,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "Merchants hire guards at great expense, the workshop is raided, "
             "and trust between traders plummets."
         ),
-        probability=0.05,
+        probability=0.02,
         duration=3,
         effects={
             "production_modifier": {
@@ -419,7 +421,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "place bets, smiths work day and night forging weapons, and the "
             "tavern has never been so profitable."
         ),
-        probability=0.04,
+        probability=0.015,
         duration=2,
         effects={
             "production_modifier": {
@@ -456,7 +458,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "and the workshop's great forge splits in two. Recovery will take "
             "a long time and cost dearly."
         ),
-        probability=0.02,
+        probability=0.008,
         duration=6,
         effects={
             "production_modifier": {
@@ -493,7 +495,7 @@ WORLD_EVENTS: list[WorldEvent] = [
             "stampede, traders flee the roads, and the bravest warriors reach "
             "for their swords. But the dragon also dropped something glittering..."
         ),
-        probability=0.01,
+        probability=0.003,
         duration=4,
         effects={
             "production_modifier": {
