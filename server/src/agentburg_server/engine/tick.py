@@ -24,6 +24,7 @@ from agentburg_server.models.social import Contract, ContractStatus, ContractTyp
 from agentburg_server.services.bank import process_interest
 from agentburg_server.services.court import process_pending_cases
 from agentburg_server.services.market import run_batch_auction
+from agentburg_server.services.production import process_production
 
 logger = logging.getLogger(__name__)
 
@@ -147,10 +148,13 @@ class TickEngine:
                 result = "guilty" if case.status.value == "verdict_guilty" else "not_guilty"
                 court_verdicts.labels(result=result).inc()
 
-            # 5. Process employment contract payments
+            # 5. Production: agents earn income and produce goods
+            produced = await process_production(session, self.tick)
+
+            # 6. Process employment contract payments
             payments = await _process_contract_payments(session, self.tick)
 
-            # 6. Process interest once per sim-day
+            # 7. Process interest once per sim-day
             interest_processed = 0
             if self.tick > 0 and self.tick % self.ticks_per_day == 0:
                 interest_processed = await process_interest(session, self.tick)
