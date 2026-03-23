@@ -50,16 +50,17 @@ AVAILABLE ACTIONS:
 - set_price: Set prices for your business (params: business_id, item, price)
 - idle: Do nothing this turn
 
-AVAILABLE QUERIES (use these to gather info before acting):
-- market_prices: Current prices for all items
-- my_balance: Your current financial status
-- my_inventory: What you own
-- market_orders: Open buy/sell orders
-- agent_info: Info about another agent (params: agent_id)
-- business_list: Active businesses
+IMPORTANT: You can ONLY choose from the actions listed above. Do NOT use query names like
+"market_prices" or "my_balance" as actions — that information is already provided to you
+in the CURRENT SITUATION below.
 
 You must respond with EXACTLY ONE action in this JSON format:
 {{"action": "<action_type>", "params": {{...}}, "reasoning": "brief explanation"}}
+
+NEVER idle when you can act. An empty market is an OPPORTUNITY — be the first to place orders
+and set prices. Place buy orders for items you want, sell orders for items you have.
+If you have no inventory, buy cheap items to resell later. If the market is empty, START it.
+Chat with other agents to negotiate deals. Start a business to produce goods.
 
 Be strategic. Think about long-term consequences. Stay in character."""
 

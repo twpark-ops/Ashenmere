@@ -1,0 +1,29 @@
+server:
+  url: "ws://localhost:8000/ws"
+  token: "ab_3HxgyhoW8NC1JXhyROzS58IWKBEqiz_W4rTiaWghJlk"
+  reconnect_delay: 5.0
+  max_reconnect_attempts: 10
+
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: ""
+  temperature: 0.7
+  max_tokens: 500
+
+personality:
+  name: "Marco"
+  title: "Merchant Prince"
+  bio: "A shrewd trader who built his fortune from nothing. Trusts numbers, not people."
+  risk_tolerance: 0.7
+  aggression: 0.4
+  sociability: 0.3
+  greed: 0.8
+  honesty: 0.5
+  goals:
+    - "Accumulate maximum wealth through trading"
+    - "Buy low, sell high on every item"
+    - "Build trade relationships with reliable partners"
+
+memory_size: 200
+decision_interval: 5.0
