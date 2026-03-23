@@ -1,306 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { getAgents, getEvents, getWorldStatus } from "./api";
-import type { WorldEvent } from "./api";
+import {
+  createAgent,
+  getAgents,
+  getCurrentSeason,
+  getEvents,
+  getLeaderboard,
+  getWorldStatus,
+  registerUser,
+} from "./api";
+import type { LeaderboardEntry, Season, WorldEvent } from "./api";
 import { useTickHistory, useTickStream } from "./hooks";
 import type { Agent, WorldStatus } from "./types";
 
-// --- Status Cards ---
-
-function StatusCards({
-  status,
-  lastUpdate,
-}: {
-  status: WorldStatus;
-  lastUpdate: Date | null;
-}) {
-  const timeAgo = lastUpdate
-    ? `${Math.round((Date.now() - lastUpdate.getTime()) / 1000)}s ago`
-    : "—";
-
-  return (
-    <div className="grid">
-      <div className="card">
-        <h2>World Tick</h2>
-        <div className="stat">{status.tick.toLocaleString()}</div>
-        <div className="stat-label">{status.world_time}</div>
-      </div>
-      <div className="card">
-        <h2>Agents</h2>
-        <div className="stat">{status.active_agents}</div>
-        <div className="stat-label">
-          active / {status.total_agents} total
-        </div>
-      </div>
-      <div className="card">
-        <h2>Total Trades</h2>
-        <div className="stat">{status.total_trades.toLocaleString()}</div>
-        <div className="stat-label">updated {timeAgo}</div>
-      </div>
-    </div>
-  );
-}
-
-// --- Economy Chart ---
-
-function EconomyChart({
-  history,
-}: {
-  history: { tick: number; agents: number; trades: number }[];
-}) {
-  if (history.length < 2) {
-    return (
-      <div className="card chart-section">
-        <h2>Economy Activity</h2>
-        <div
-          className="loading"
-          style={{ padding: "40px 0", fontSize: "13px" }}
-        >
-          Collecting data points...
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="card chart-section">
-      <h2>Economy Activity</h2>
-      <ResponsiveContainer width="100%" height={240}>
-        <AreaChart
-          data={history}
-          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-        >
-          <defs>
-            <linearGradient id="colorTrades" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
-          <XAxis
-            dataKey="tick"
-            tick={{ fill: "#8888a0", fontSize: 11 }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: "#8888a0", fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "#1a1a24",
-              border: "1px solid #2a2a3a",
-              borderRadius: 8,
-              fontSize: 13,
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="trades"
-            name="Cumulative Trades"
-            stroke="#6366f1"
-            fill="url(#colorTrades)"
-            strokeWidth={2}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// --- Balance Distribution Chart ---
-
-function BalanceDistribution({ agents }: { agents: Agent[] }) {
-  const buckets = useMemo(() => {
-    const ranges = [
-      { label: "$0-50", min: 0, max: 5000 },
-      { label: "$50-100", min: 5000, max: 10000 },
-      { label: "$100-500", min: 10000, max: 50000 },
-      { label: "$500-1K", min: 50000, max: 100000 },
-      { label: "$1K+", min: 100000, max: Infinity },
-    ];
-    return ranges.map((r) => ({
-      range: r.label,
-      count: agents.filter((a) => a.balance >= r.min && a.balance < r.max)
-        .length,
-    }));
-  }, [agents]);
-
-  if (agents.length === 0) return null;
-
-  return (
-    <div className="card chart-section">
-      <h2>Wealth Distribution</h2>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart
-          data={buckets}
-          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
-          <XAxis
-            dataKey="range"
-            tick={{ fill: "#8888a0", fontSize: 11 }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: "#8888a0", fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "#1a1a24",
-              border: "1px solid #2a2a3a",
-              borderRadius: 8,
-              fontSize: 13,
-            }}
-          />
-          <Bar dataKey="count" name="Agents" fill="#22c55e" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// --- Agent Table ---
-
-type SortField = "name" | "balance" | "reputation" | "status";
-type SortDir = "asc" | "desc";
-
-function formatBalance(cents: number): string {
-  const dollars = cents / 100;
-  return dollars.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function AgentTable({ agents }: { agents: Agent[] }) {
-  const [sortField, setSortField] = useState<SortField>("balance");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  const sorted = useMemo(() => {
-    return [...agents].sort((a, b) => {
-      const dir = sortDir === "asc" ? 1 : -1;
-      if (sortField === "name") return dir * a.name.localeCompare(b.name);
-      if (sortField === "balance") return dir * (a.balance - b.balance);
-      if (sortField === "reputation")
-        return dir * (a.reputation - b.reputation);
-      if (sortField === "status")
-        return dir * a.status.localeCompare(b.status);
-      return 0;
-    });
-  }, [agents, sortField, sortDir]);
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("desc");
-    }
-  };
-
-  const sortIcon = (field: SortField) => {
-    if (sortField !== field) return "";
-    return sortDir === "asc" ? " \u25B2" : " \u25BC";
-  };
-
-  return (
-    <div className="card">
-      <h2>
-        Agents{" "}
-        <span style={{ color: "var(--text-dim)", fontWeight: 400 }}>
-          ({agents.length})
-        </span>
-      </h2>
-      <table className="agent-table">
-        <thead>
-          <tr>
-            <th
-              onClick={() => toggleSort("name")}
-              style={{ cursor: "pointer" }}
-            >
-              Name{sortIcon("name")}
-            </th>
-            <th>Title</th>
-            <th>Tier</th>
-            <th
-              onClick={() => toggleSort("status")}
-              style={{ cursor: "pointer" }}
-            >
-              Status{sortIcon("status")}
-            </th>
-            <th
-              onClick={() => toggleSort("balance")}
-              style={{ cursor: "pointer" }}
-            >
-              Balance{sortIcon("balance")}
-            </th>
-            <th
-              onClick={() => toggleSort("reputation")}
-              style={{ cursor: "pointer" }}
-            >
-              Reputation{sortIcon("reputation")}
-            </th>
-            <th>Location</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((agent) => (
-            <tr key={agent.id}>
-              <td>{agent.name}</td>
-              <td>{agent.title ?? "\u2014"}</td>
-              <td>
-                <span className={`badge badge--${agent.tier}`}>
-                  {agent.tier}
-                </span>
-              </td>
-              <td>
-                <span className={`badge badge--${agent.status}`}>
-                  {agent.status}
-                </span>
-              </td>
-              <td>
-                <span
-                  className={`money ${agent.balance >= 0 ? "money--positive" : "money--negative"}`}
-                >
-                  ${formatBalance(agent.balance)}
-                </span>
-              </td>
-              <td>{agent.reputation}</td>
-              <td>{agent.location}</td>
-            </tr>
-          ))}
-          {agents.length === 0 && (
-            <tr>
-              <td
-                colSpan={7}
-                style={{ textAlign: "center", color: "var(--text-dim)" }}
-              >
-                No agents yet. Start some agents to see them here.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// --- Event Timeline ---
+// --- Time of Day ---
 
 const TIME_ICONS: Record<string, string> = {
   morning: "\u{1F305}",
@@ -309,13 +30,88 @@ const TIME_ICONS: Record<string, string> = {
   night: "\u{1F319}",
 };
 
-function TimeOfDayBadge({ time }: { time: string }) {
+// --- Season Header ---
+
+function SeasonHeader({
+  season,
+  status,
+}: {
+  season: Season | null;
+  status: WorldStatus | null;
+}) {
+  if (!season || !status) return null;
+
+  const startTick = season.start_tick ?? 0;
+  const endTick = season.end_tick ?? startTick + 1008;
+  const totalTicks = endTick - startTick;
+  const elapsed = Math.max(0, status.tick - startTick);
+  const progress = Math.min(100, (elapsed / totalTicks) * 100);
+  const daysLeft = Math.max(0, Math.ceil((totalTicks - elapsed) / 6));
+
   return (
-    <span className="tick-badge" style={{ fontSize: 14 }}>
-      {TIME_ICONS[time] || "\u{23F0}"} {time}
-    </span>
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>{season.name}</h2>
+        <span style={{ color: "var(--text-dim)", fontSize: 13 }}>
+          Day {status.day} / {Math.ceil(totalTicks / 6)} &middot; {daysLeft} days left
+        </span>
+      </div>
+      <div style={{ background: "var(--bg)", borderRadius: 6, height: 8, overflow: "hidden" }}>
+        <div
+          style={{
+            background: "linear-gradient(90deg, var(--accent), var(--green))",
+            height: "100%",
+            width: `${progress}%`,
+            transition: "width 0.5s",
+          }}
+        />
+      </div>
+    </div>
   );
 }
+
+// --- Leaderboard ---
+
+function Leaderboard({ entries }: { entries: LeaderboardEntry[] }) {
+  if (entries.length === 0) return null;
+
+  const medals = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
+
+  return (
+    <div className="card">
+      <h2>Leaderboard</h2>
+      <table className="agent-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Balance</th>
+            <th>Trades</th>
+            <th>Rep</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => (
+            <tr key={e.agent_id}>
+              <td>{medals[e.rank - 1] || e.rank}</td>
+              <td>
+                {e.name}
+                {e.title && <span style={{ color: "var(--text-dim)", fontSize: 12 }}> ({e.title})</span>}
+              </td>
+              <td className={`money ${e.balance >= 0 ? "money--positive" : "money--negative"}`}>
+                ${(e.balance / 100).toLocaleString("en-US", { minimumFractionDigits: 0 })}
+              </td>
+              <td>{e.total_trades}</td>
+              <td>{e.reputation}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --- Event Timeline ---
 
 function EventTimeline({ events }: { events: WorldEvent[] }) {
   if (events.length === 0) {
@@ -323,42 +119,184 @@ function EventTimeline({ events }: { events: WorldEvent[] }) {
       <div className="card">
         <h2>Live Events</h2>
         <div className="loading" style={{ padding: "20px 0", fontSize: 13 }}>
-          No events yet...
+          Waiting for events...
         </div>
       </div>
     );
   }
+
+  const categoryStyle = (cat: string): React.CSSProperties => {
+    if (cat === "world") return { color: "#f59e0b", fontWeight: 600 };
+    if (cat === "social") return { color: "#8b5cf6" };
+    if (cat === "trade") return { color: "var(--green)" };
+    return { color: "var(--text-dim)" };
+  };
+
   return (
-    <div className="card" style={{ maxHeight: 400, overflowY: "auto" }}>
+    <div className="card" style={{ maxHeight: 500, overflowY: "auto" }}>
       <h2>Live Events</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {events.map((e, i) => (
           <div
             key={e.id || i}
             style={{
-              background: "var(--card-bg)",
-              border: "1px solid var(--border)",
+              background: e.category === "world" ? "rgba(245,158,11,0.08)" : "var(--surface)",
+              border: `1px solid ${e.category === "world" ? "rgba(245,158,11,0.2)" : "var(--border)"}`,
               borderRadius: 8,
-              padding: "10px 12px",
+              padding: "8px 12px",
               fontSize: 13,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                color: "var(--text-dim)",
-                fontSize: 11,
-                marginBottom: 4,
-              }}
-            >
-              <span>Tick #{e.tick}</span>
-              <span>{e.category}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
+              <span style={{ color: "var(--text-dim)" }}>Tick #{e.tick}</span>
+              <span style={categoryStyle(e.category)}>{e.category}</span>
             </div>
             <div style={{ color: "var(--text)" }}>{e.description}</div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// --- Economy Chart ---
+
+function EconomyChart({ history }: { history: { tick: number; agents: number; trades: number }[] }) {
+  if (history.length < 2) {
+    return (
+      <div className="card">
+        <h2>Economy</h2>
+        <div className="loading" style={{ padding: "30px 0", fontSize: 13 }}>Collecting data...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card">
+      <h2>Economy</h2>
+      <ResponsiveContainer width="100%" height={200}>
+        <AreaChart data={history} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorTrades" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
+          <XAxis dataKey="tick" tick={{ fill: "#8888a0", fontSize: 11 }} tickLine={false} />
+          <YAxis tick={{ fill: "#8888a0", fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip
+            contentStyle={{ background: "#1a1a24", border: "1px solid #2a2a3a", borderRadius: 8, fontSize: 13 }}
+          />
+          <Area type="monotone" dataKey="trades" name="Trades" stroke="#6366f1" fill="url(#colorTrades)" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// --- Agent Registration ---
+
+function RegisterPanel({ onCreated }: { onCreated: () => void }) {
+  const [step, setStep] = useState<"register" | "create_agent" | "done">("register");
+  const [jwt, setJwt] = useState("");
+  const [agentToken, setAgentToken] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Registration form
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Agent form
+  const [agentName, setAgentName] = useState("");
+  const [agentTitle, setAgentTitle] = useState("");
+  const [agentBio, setAgentBio] = useState("");
+
+  const handleRegister = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await registerUser(email, username, password);
+      setJwt(result.access_token);
+      setStep("create_agent");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Registration failed");
+    }
+    setLoading(false);
+  };
+
+  const handleCreateAgent = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await createAgent(jwt, agentName, agentTitle, agentBio);
+      setAgentToken(result.token);
+      setStep("done");
+      onCreated();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Agent creation failed");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="card">
+      <h2>Join Ashenmere</h2>
+
+      {error && <div className="error" style={{ marginBottom: 12, padding: 8, fontSize: 13 }}>{error}</div>}
+
+      {step === "register" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
+          <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
+          <input placeholder="Password (8+ chars)" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
+          <button onClick={handleRegister} disabled={loading || !email || !username || password.length < 8}
+            style={{ padding: "10px 16px", borderRadius: 6, background: "var(--accent)", color: "white", border: "none", cursor: "pointer", fontWeight: 600 }}>
+            {loading ? "Creating..." : "Create Account"}
+          </button>
+        </div>
+      )}
+
+      {step === "create_agent" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ color: "var(--text-dim)", fontSize: 13, margin: 0 }}>Account created! Now create your agent:</p>
+          <input placeholder="Agent name" value={agentName} onChange={(e) => setAgentName(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
+          <input placeholder="Title (e.g., Merchant, Farmer)" value={agentTitle} onChange={(e) => setAgentTitle(e.target.value)}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
+          <textarea placeholder="Bio — who is your agent?" value={agentBio} onChange={(e) => setAgentBio(e.target.value)}
+            rows={3}
+            style={{ padding: 8, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", resize: "vertical" }} />
+          <button onClick={handleCreateAgent} disabled={loading || agentName.length < 2}
+            style={{ padding: "10px 16px", borderRadius: 6, background: "var(--green)", color: "white", border: "none", cursor: "pointer", fontWeight: 600 }}>
+            {loading ? "Creating..." : "Create Agent"}
+          </button>
+        </div>
+      )}
+
+      {step === "done" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ color: "var(--green)", fontWeight: 600, margin: 0 }}>Agent created!</p>
+          <p style={{ color: "var(--text-dim)", fontSize: 13, margin: 0 }}>
+            Save this token — it&apos;s shown only once:
+          </p>
+          <code style={{
+            padding: 12, borderRadius: 6, background: "var(--bg)", color: "var(--accent)",
+            fontSize: 12, wordBreak: "break-all", userSelect: "all"
+          }}>
+            {agentToken}
+          </code>
+          <p style={{ color: "var(--text-dim)", fontSize: 12, margin: 0 }}>
+            Put this in your config.yaml under server.token, then run:<br />
+            <code>python -m agentburg_client --config config.yaml</code>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -369,81 +307,142 @@ export function App() {
   const [status, setStatus] = useState<WorldStatus | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [events, setEvents] = useState<WorldEvent[]>([]);
+  const [season, setSeason] = useState<Season | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { history, addPoint } = useTickHistory(60);
 
-  // Full data refresh from REST API
   const refresh = useCallback(async () => {
     try {
-      const [s, a, ev] = await Promise.all([getWorldStatus(), getAgents(), getEvents()]);
+      const [s, a, ev, sn] = await Promise.all([
+        getWorldStatus(),
+        getAgents(),
+        getEvents(),
+        getCurrentSeason(),
+      ]);
       setStatus(s);
       setAgents(a);
       setEvents(ev);
+      setSeason(sn);
       setError(null);
       setLastUpdate(new Date());
       addPoint(s.tick, s.active_agents, s.total_trades);
+
+      if (sn?.id) {
+        const lb = await getLeaderboard(sn.id);
+        setLeaderboard(lb);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch data");
     }
   }, [addPoint]);
 
-  // WebSocket tick stream: update tick/world_time instantly, then refresh full data
   const wsConnected = useTickStream(
     useCallback(
       (update) => {
         setStatus((prev) =>
-          prev
-            ? { ...prev, tick: update.tick, world_time: update.world_time }
-            : prev
+          prev ? { ...prev, tick: update.tick, world_time: update.world_time } : prev
         );
         setLastUpdate(new Date());
-        // Debounced full refresh to pick up agent balance/status changes
         refresh();
       },
       [refresh]
     )
   );
 
-  // Initial load + fallback polling when WebSocket is disconnected
   useEffect(() => {
     refresh();
-    // Poll less frequently when WS is connected, more when disconnected
     const interval = setInterval(refresh, wsConnected ? 10000 : 3000);
     return () => clearInterval(interval);
   }, [refresh, wsConnected]);
 
+  const timeAgo = lastUpdate
+    ? `${Math.round((Date.now() - lastUpdate.getTime()) / 1000)}s ago`
+    : "";
+
   return (
     <div className="app">
+      {/* Header */}
       <header>
         <h1>
-          Agent<span>Burg</span>
+          Ashen<span>mere</span>
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {status?.time_of_day && <TimeOfDayBadge time={status.time_of_day} />}
-          {status && <span className="tick-badge">Day {status.day} · Tick #{status.tick}</span>}
+          {status?.time_of_day && (
+            <span className="tick-badge">
+              {TIME_ICONS[status.time_of_day] || ""} {status.time_of_day}
+            </span>
+          )}
+          {status && <span className="tick-badge">Day {status.day} &middot; Tick #{status.tick}</span>}
           <span
             className={`ws-indicator ${wsConnected ? "ws-indicator--on" : "ws-indicator--off"}`}
-            title={wsConnected ? "Live updates active" : "Polling mode"}
+            title={wsConnected ? `Live (${timeAgo})` : "Reconnecting..."}
           />
         </div>
       </header>
 
       {error && <div className="error">Error: {error}</div>}
-      {!status && !error && (
-        <div className="loading">Connecting to server...</div>
-      )}
+      {!status && !error && <div className="loading">Connecting to Ashenmere...</div>}
 
-      {status && <StatusCards status={status} lastUpdate={lastUpdate} />}
+      {/* Season Progress */}
+      {season && <SeasonHeader season={season} status={status} />}
 
-      <div className="charts-grid">
-        <EconomyChart history={history} />
-        <BalanceDistribution agents={agents} />
-      </div>
+      {/* Main 3-column layout */}
+      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr 320px", gap: 16, padding: "0 16px 16px" }}>
+        {/* Left: Leaderboard + Register */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Leaderboard entries={leaderboard} />
+          <RegisterPanel onCreated={refresh} />
+        </div>
 
-      <div className="charts-grid">
-        <EventTimeline events={events} />
-        <AgentTable agents={agents} />
+        {/* Center: Stats + Chart */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="grid">
+            <div className="card">
+              <h2>Agents</h2>
+              <div className="stat">{status?.active_agents ?? 0}</div>
+              <div className="stat-label">active / {status?.total_agents ?? 0} total</div>
+            </div>
+            <div className="card">
+              <h2>Trades</h2>
+              <div className="stat">{status?.total_trades?.toLocaleString() ?? 0}</div>
+              <div className="stat-label">this season</div>
+            </div>
+          </div>
+          <EconomyChart history={history} />
+
+          {/* Agent Table */}
+          <div className="card">
+            <h2>Citizens <span style={{ color: "var(--text-dim)", fontWeight: 400 }}>({agents.length})</span></h2>
+            <table className="agent-table">
+              <thead>
+                <tr><th>Name</th><th>Title</th><th>Balance</th><th>Rep</th><th>Location</th></tr>
+              </thead>
+              <tbody>
+                {agents.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.name}</td>
+                    <td style={{ color: "var(--text-dim)" }}>{a.title ?? "\u2014"}</td>
+                    <td className={`money ${a.balance >= 0 ? "money--positive" : "money--negative"}`}>
+                      ${(a.balance / 100).toLocaleString("en-US", { minimumFractionDigits: 0 })}
+                    </td>
+                    <td>{a.reputation}</td>
+                    <td style={{ color: "var(--text-dim)", fontSize: 12 }}>{a.location}</td>
+                  </tr>
+                ))}
+                {agents.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--text-dim)" }}>No citizens yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Event Timeline */}
+        <div>
+          <EventTimeline events={events} />
+        </div>
       </div>
     </div>
   );
