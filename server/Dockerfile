@@ -54,7 +54,7 @@ USER agentburg
 EXPOSE 8000
 
 # Health check endpoint
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["sh", "-c", "python -m uvicorn agentburg_server.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "cd /app/server && python -m alembic upgrade head && cd /app && python -m uvicorn agentburg_server.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
