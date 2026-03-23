@@ -204,3 +204,113 @@ async def test_process_multiple_contracts(db_session: AsyncSession):
     assert employer.balance == 100_000 - 3_000 - 5_000  # 92_000
     assert emp1.balance == 3_000
     assert emp2.balance == 5_000
+
+
+# =====================================================================
+# Macro/Micro Tick Engine Tests
+# =====================================================================
+
+from agentburg_server.engine.tick import TIME_OF_DAY_CYCLE, TickEngine
+
+
+class TestTimeOfDay:
+    """Test time_of_day property cycling."""
+
+    def test_initial_time_is_morning(self):
+        engine = TickEngine()
+        assert engine.time_of_day == "morning"
+
+    def test_cycle_through_full_day(self):
+        engine = TickEngine()
+        actual = []
+        for i in range(len(TIME_OF_DAY_CYCLE)):
+            engine.tick = i
+            actual.append(engine.time_of_day)
+        assert actual == list(TIME_OF_DAY_CYCLE)
+
+    def test_cycle_wraps_around(self):
+        engine = TickEngine()
+        engine.tick = len(TIME_OF_DAY_CYCLE)
+        assert engine.time_of_day == "morning"
+
+    def test_afternoon_at_tick_2(self):
+        engine = TickEngine()
+        engine.tick = 2
+        assert engine.time_of_day == "afternoon"
+
+    def test_night_at_tick_5(self):
+        engine = TickEngine()
+        engine.tick = 5
+        assert engine.time_of_day == "night"
+
+
+class TestDayCounter:
+    """Test day counter incrementing."""
+
+    def test_initial_day_is_zero(self):
+        engine = TickEngine()
+        assert engine.day == 0
+
+    def test_day_increments_after_full_cycle(self):
+        engine = TickEngine()
+        engine.ticks_per_day = 6
+        for _ in range(6):
+            engine.tick += 1
+            if engine.tick % engine.ticks_per_day == 0:
+                engine.day += 1
+        assert engine.day == 1
+
+    def test_three_full_days(self):
+        engine = TickEngine()
+        engine.ticks_per_day = 6
+        for _ in range(18):
+            engine.tick += 1
+            if engine.tick % engine.ticks_per_day == 0:
+                engine.day += 1
+        assert engine.day == 3
+
+
+class TestTickEngineConfig:
+    """Test tick engine configuration."""
+
+    def test_default_values(self):
+        engine = TickEngine()
+        assert engine.tick == 0
+        assert engine.micro_tick == 0
+        assert engine.running is False
+
+    def test_micros_per_macro(self):
+        engine = TickEngine()
+        engine.macro_interval = 600.0
+        engine.micro_interval = 30.0
+        assert int(engine.macro_interval / engine.micro_interval) == 20
+
+    def test_micros_per_macro_short(self):
+        engine = TickEngine()
+        engine.macro_interval = 30.0
+        engine.micro_interval = 5.0
+        assert int(engine.macro_interval / engine.micro_interval) == 6
+
+
+class TestTickEngineLifecycle:
+    """Test engine start/stop."""
+
+    @pytest.mark.asyncio
+    async def test_start_stop(self):
+        engine = TickEngine()
+        engine.macro_interval = 9999
+        engine.micro_interval = 9999
+        await engine.start()
+        assert engine.running is True
+        await engine.stop()
+        assert engine.running is False
+
+    @pytest.mark.asyncio
+    async def test_double_start_safe(self):
+        engine = TickEngine()
+        engine.macro_interval = 9999
+        engine.micro_interval = 9999
+        await engine.start()
+        await engine.start()
+        assert engine.running is True
+        await engine.stop()
