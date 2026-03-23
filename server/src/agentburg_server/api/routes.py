@@ -60,13 +60,16 @@ class AgentResponse(BaseModel):
     id: UUID
     name: str
     title: str | None
+    bio: str | None = None
     tier: str
     status: str
     balance: int
+    inventory: dict = {}
     reputation: int
     location: str
     pos_x: int = 500
     pos_y: int = 500
+    total_trades: int = 0
 
     model_config = {"from_attributes": True}
 

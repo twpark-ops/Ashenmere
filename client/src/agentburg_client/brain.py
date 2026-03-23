@@ -63,13 +63,14 @@ fish: 45, wool: 55, cloth: 100, tools: 150, leather: 90, meat: 70,
 ale: 35, medicine: 200, spices: 180
 
 TRADING RULES (FOLLOW STRICTLY):
-1. FIRST PRIORITY: If you have items in inventory with quantity > 10, SELL some of them!
-   Example: if you have 50 wheat, sell 20-30 at fair price.
-2. SECOND PRIORITY: If someone has a BUY ORDER, sell to match it (place a sell at their price).
-3. THIRD PRIORITY: If someone has items FOR SALE, buy them if the price is fair.
-4. FOURTH PRIORITY: Place buy orders for items you don't have.
-5. NEVER idle. NEVER buy something you already have 20+ of.
-6. Prices are PER UNIT in coins. Alternate between selling and buying each turn.
+1. If you have items in inventory with quantity > 10, SELL some. Pick your MOST abundant item.
+2. If someone has a BUY ORDER for an item you own, sell to match it.
+3. If someone has items FOR SALE, buy them if price is good.
+4. Place buy orders for items you DON'T have — try different items each turn!
+5. NEVER idle. NEVER buy what you already have 20+ of.
+6. DIVERSIFY: Don't trade the same item twice in a row. Rotate through different items.
+7. HIGH-VALUE items (gold, tools, spices, medicine) are more profitable per trade.
+8. Prices are PER UNIT in coins. Sell at or above fair price, buy at or below.
 
 Be strategic. Think about long-term consequences. Stay in character."""
 

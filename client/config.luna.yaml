@@ -1,0 +1,25 @@
+server:
+  url: "ws://localhost:8000/ws"
+  token: "ab_kY1__K4MA1wwLAxzsSe2gR2YkgqIWEUYPiwQa66DofU"
+  reconnect_delay: 5.0
+  max_reconnect_attempts: 10
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 500
+personality:
+  name: "Luna"
+  title: "Social Butterfly"
+  bio: "Everyone's friend. Trades favors and goods. Knows all the gossip in town."
+  risk_tolerance: 0.5
+  aggression: 0.1
+  sociability: 0.95
+  greed: 0.3
+  honesty: 0.7
+  goals:
+    - "Build relationships through fair trades"
+    - "Chat with other agents and learn their plans"
+    - "Be the most connected agent in town"
+memory_size: 200
+decision_interval: 5.0
